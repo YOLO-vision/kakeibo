@@ -507,12 +507,10 @@ function prepareImage(image) {
 // 読み取った文字を、探しやすい形にそろえる関数
 function normalizeText(text) {
   return text
-    // 全角の数字「１２３」を半角の「123」にする（文字の番号を一定の数だけずらす）
-    .replace(/[０-９]/g, function (c) {
-      return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
-    })
-    .replace(/[，、]/g, ",")
-    .replace(/[／]/g, "/")
+    // 文字の形をそろえる（NFKC という決まりに合わせる）
+    // 全角の数字「１２３」→ 半角「123」、半角カタカナ「ﾊﾟﾝ」→ 全角「パン」、「／」→「/」など
+    .normalize("NFKC")
+    .replace(/[、]/g, ",")
     // 日本語の読み取りでは「合 計」のように間にすき間が入りがちなので、すき間を消す
     .replace(/[ 　\t]/g, "")
     // 「1.980」のようにカンマが点に読まれたものを「1,980」に直す
@@ -603,6 +601,58 @@ function findDate(text) {
   return toDateString(year, month, day);
 }
 
+// ===== 品物の名前から分類を決める =====
+// 分類ごとの「よく出てくる言葉」の一覧。言葉はここに足していけば賢くなる
+// ※「水」「本」のような1文字の言葉は「水曜」「日本」にも当てはまってしまうので入れない
+// ※「レジ袋」はどの店のレシートにも出てくるので入れない
+const CATEGORY_KEYWORDS = {
+  "食費": [
+    "スーパー", "食品", "牛乳", "パン", "たまご", "玉子", "卵", "米", "肉", "豚", "鶏", "魚",
+    "刺身", "野菜", "キャベツ", "レタス", "玉ねぎ", "たまねぎ", "にんじん", "じゃがいも",
+    "トマト", "きゅうり", "りんご", "バナナ", "みかん", "豆腐", "納豆", "ヨーグルト",
+    "チーズ", "バター", "ハム", "ソーセージ", "弁当", "おにぎり", "惣菜", "総菜", "ジュース",
+    "お茶", "緑茶", "コーヒー", "菓子", "チョコ", "アイス", "麺", "冷凍", "調味料", "醤油",
+    "しょうゆ", "味噌", "みそ",
+  ],
+  "日用品": [
+    "ドラッグ", "薬局", "ホームセンター", "ティッシュ", "トイレット", "洗剤", "柔軟剤",
+    "漂白", "シャンプー", "リンス", "コンディショナー", "ボディソープ", "ハンドソープ",
+    "石鹸", "せっけん", "歯ブラシ", "歯磨", "ハミガキ", "ゴミ袋", "ごみ袋", "ラップ",
+    "アルミホイル", "スポンジ", "電池", "マスク", "綿棒", "絆創膏", "化粧", "日用品",
+  ],
+  "交通費": [
+    "乗車", "切符", "きっぷ", "定期券", "運賃", "電車", "鉄道", "タクシー", "駐車",
+    "ガソリン", "レギュラー", "ハイオク", "軽油", "高速", "ETC",
+  ],
+  "趣味・娯楽": [
+    "書籍", "書店", "文庫", "雑誌", "コミック", "ゲーム", "映画", "チケット", "入場",
+    "スポーツ", "DVD", "おもちゃ", "玩具", "カラオケ", "プラモ",
+  ],
+  "外食": [
+    "店内", "イートイン", "テイクアウト", "持ち帰り", "お持帰り", "ランチ", "ディナー",
+    "定食", "ラーメン", "うどん", "そば", "丼", "カレー", "寿司", "焼肉", "餃子",
+    "居酒屋", "生ビール", "レストラン", "カフェ", "食堂", "飲食", "お通し", "名様",
+  ],
+};
+
+// レシートの行から分類を決める関数
+// 見つかったら { category: 分類, words: 当てはまった言葉の配列 } を返す。1つもなければ null
+function guessCategory(lines) {
+  const text = lines.join("\n"); // 全部の行を1つの文字にまとめる
+  let best = null;
+  for (const category of Object.keys(CATEGORY_KEYWORDS)) {
+    // この分類の言葉のうち、レシートに入っているものだけを取り出す（filter = 条件に合うものだけ残す）
+    const words = CATEGORY_KEYWORDS[category].filter(function (word) {
+      return text.includes(word);
+    });
+    // 当てはまった言葉がいちばん多い分類を覚えておく
+    if (words.length > 0 && (best === null || words.length > best.words.length)) {
+      best = { category: category, words: words };
+    }
+  }
+  return best;
+}
+
 // 写真が選ばれたときの処理
 // async を付けた関数の中では、await で「時間のかかる処理が終わるまで待つ」ことができる
 receiptInput.addEventListener("change", async function () {
@@ -646,10 +696,12 @@ receiptInput.addEventListener("change", async function () {
     const lines = text.split("\n").map(normalizeText);
     const total = findTotal(lines);
     const date = findDate(lines.join("\n"));
+    const guess = guessCategory(lines);
 
     // 見つかったものを入力フォームに入れる
     if (total !== null) amountInput.value = total.amount;
     if (date !== null) dateInput.value = date;
+    if (guess !== null) categoryInput.value = guess.category;
 
     // 結果のお知らせ。最後は自分で確かめて「追加する」を押してもらう
     if (total !== null) {
@@ -664,6 +716,13 @@ receiptInput.addEventListener("change", async function () {
         message += "（合計の行がうまく読めなかったので、" + total.from + "から取りました）";
       }
       if (date === null) message += "日付は見つからなかったので、確かめてください。";
+      // 分類のお知らせ。例: 「分類は「食費」にしました（牛乳・パン などから）」
+      if (guess !== null) {
+        // slice(0, 3) = 最初の3つだけ。join("・") = 「・」でつなぐ
+        message += "分類は「" + guess.category + "」にしました（" + guess.words.slice(0, 3).join("・") + " などから）。";
+      } else {
+        message += "分類はわからなかったので、選んでください。";
+      }
       ocrStatus.textContent = message + "合っていたら「追加する」を押してください。";
     } else {
       ocrStatus.textContent = "合計金額が見つかりませんでした。「読み取った文字を見る」を参考に、手で入力してください。";
