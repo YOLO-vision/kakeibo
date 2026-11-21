@@ -437,6 +437,203 @@ confirmDeleteButton.addEventListener("click", function () {
   deleteDialog.close();
 });
 
+// ===== レシートの読み取り（Tesseract.js） =====
+const receiptInput = document.getElementById("receipt-input");
+const receiptButton = receiptInput.parentElement; // ボタンの見た目をしている <label>
+const ocrStatus = document.getElementById("ocr-status");
+const ocrProgress = document.getElementById("ocr-progress");
+const receiptPreview = document.getElementById("receipt-preview");
+const ocrDetails = document.getElementById("ocr-details");
+const ocrText = document.getElementById("ocr-text");
+
+// 文字を読む係（ワーカー）。作るのに時間がかかるので、1回作ったら使い回す
+let ocrWorker = null;
+
+// 進み具合を画面に出す関数（Tesseract.js が何度も呼んでくれる）
+function showOcrProgress(message) {
+  // message.status は英語の「今やっていること」、message.progress は 0〜1 の進み具合
+  const names = {
+    "loading tesseract core": "準備中…",
+    "initializing tesseract": "準備中…",
+    "loading language traineddata": "日本語のデータを読み込み中…（初回だけ少し時間がかかります）",
+    "initializing api": "準備中…",
+    "recognizing text": "文字を読み取り中…",
+  };
+  ocrStatus.textContent = names[message.status] || "準備中…";
+  ocrProgress.value = message.progress;
+}
+
+// 写真ファイルを、画面に出せる「画像」にする関数
+// new Promise(...) は「終わったら知らせる約束」。画像の読み込みは少し時間がかかるので、
+// 読み込み終わったら resolve（成功）、失敗したら reject（失敗）で知らせる
+function loadImage(file) {
+  return new Promise(function (resolve, reject) {
+    const image = new Image();
+    image.onload = function () { resolve(image); };
+    image.onerror = reject;
+    // URL.createObjectURL で、スマホの中の写真に一時的な住所（URL）を付ける
+    image.src = URL.createObjectURL(file);
+  });
+}
+
+// 読み取りやすいように写真を整える関数（小さくする・白黒にする）
+// スマホの写真はとても大きいので、そのままだと読み取りに何分もかかってしまう
+function prepareImage(image) {
+  const MAX_SIZE = 2000; // 長いほうの辺をこの大きさ（ピクセル）までにする
+  const scale = Math.min(1, MAX_SIZE / Math.max(image.width, image.height));
+
+  // <canvas> は絵を描ける画用紙。ここに写真を縮めて描く
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  // 1つ1つの点（ピクセル）の色を、白黒の濃さに変える
+  // data には点ごとに [赤, 緑, 青, 透明度] の4つの数が順番に並んでいる
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = pixels.data;
+  for (let i = 0; i < data.length; i += 4) {
+    // 人の目に近い割合で混ぜて、明るさ（0=黒〜255=白）にする
+    let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    // コントラストを強めて、文字をくっきりさせる（明るい所はより白く、暗い所はより黒く）
+    gray = (gray - 128) * 1.5 + 128;
+    data[i] = data[i + 1] = data[i + 2] = gray; // 255を超えた分などは自動でおさまる
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+// 読み取った文字を、探しやすい形にそろえる関数
+function normalizeText(text) {
+  return text
+    // 全角の数字「１２３」を半角の「123」にする（文字の番号を一定の数だけずらす）
+    .replace(/[０-９]/g, function (c) {
+      return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    })
+    .replace(/[，、]/g, ",")
+    .replace(/[／]/g, "/")
+    // 日本語の読み取りでは「合 計」のように間にすき間が入りがちなので、すき間を消す
+    .replace(/[ 　\t]/g, "")
+    // 「1.980」のようにカンマが点に読まれたものを「1,980」に直す
+    .replace(/(\d)\.(\d{3})(?!\d)/g, "$1,$2");
+}
+
+// 1行の中から金額を探す関数。いちばん右の数を金額とみなす
+function findAmountInLine(line) {
+  // 「3点」のような買った数は金額ではないので先に消す
+  const cleaned = line.replace(/\d+点/g, "");
+  // \d[\d,]* = 数字で始まり、数字かカンマが続く部分。 g = 全部探す
+  const numbers = cleaned.match(/\d[\d,]*/g);
+  if (numbers === null) return null;
+  const amount = Number(numbers[numbers.length - 1].replace(/,/g, ""));
+  return amount > 0 ? amount : null;
+}
+
+// レシートの文字から合計金額を探す関数
+function findTotal(lines) {
+  // 上から順に試す言葉。「合計」がいちばん確実なので先に探す
+  const keywords = ["合計", "お買上", "お買い上げ", "ご請求", "お支払"];
+  for (const keyword of keywords) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // 「小計」は合計ではないので飛ばす
+      if (!line.includes(keyword) || line.includes("小計")) continue;
+      // その行に数があればそれ。なければ金額が次の行にあることも多いので、次の行を見る
+      const amount = findAmountInLine(line) || findAmountInLine(lines[i + 1] || "");
+      if (amount !== null) return amount;
+    }
+  }
+  return null; // 見つからなかった
+}
+
+// レシートの文字から日付を探して "2026-11-21" の形で返す関数
+function findDate(text) {
+  // 例: 2026年11月21日 / 2026/11/21 / 2026.11.21 / 2026-11-21
+  let match = text.match(/(20\d\d)[年\/\.\-](\d{1,2})[月\/\.\-](\d{1,2})/);
+  let year;
+  if (match !== null) {
+    year = Number(match[1]);
+  } else {
+    // 例: 令和8年11月21日（令和1年 = 2019年 なので、2018 を足す）
+    match = text.match(/令和(\d{1,2})年(\d{1,2})月(\d{1,2})日/);
+    if (match === null) return null;
+    year = 2018 + Number(match[1]);
+  }
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  // ありえない月日（読み間違い）なら使わない
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return toDateString(year, month, day);
+}
+
+// 写真が選ばれたときの処理
+// async を付けた関数の中では、await で「時間のかかる処理が終わるまで待つ」ことができる
+receiptInput.addEventListener("change", async function () {
+  const file = receiptInput.files[0];
+  if (!file) return; // 選ぶのをやめたときは何もしない
+
+  // ライブラリが読み込めていない（ネットにつながっていない など）
+  if (typeof Tesseract === "undefined") {
+    ocrStatus.hidden = false;
+    ocrStatus.textContent = "読み取りの仕組みを読み込めませんでした。ネットにつながっているか確かめてください。";
+    receiptInput.value = "";
+    return;
+  }
+
+  // 読み取り中の見た目にする
+  receiptButton.classList.add("busy");
+  ocrStatus.hidden = false;
+  ocrStatus.textContent = "写真を準備中…";
+  ocrProgress.hidden = false;
+  ocrProgress.value = 0;
+  ocrDetails.hidden = true;
+
+  try {
+    const image = await loadImage(file);
+    receiptPreview.src = image.src;
+    receiptPreview.hidden = false;
+
+    // 文字を読む係を、まだいなければ作る（日本語 = "jpn"）
+    if (ocrWorker === null) {
+      ocrWorker = await Tesseract.createWorker("jpn", 1, { logger: showOcrProgress });
+    }
+    // 整えた写真を読み取ってもらう。結果の data.text に読み取った文字が入っている
+    const result = await ocrWorker.recognize(prepareImage(image));
+    const text = result.data.text;
+
+    // 読み取った文字をそのまま見られるようにする
+    ocrText.textContent = text;
+    ocrDetails.hidden = false;
+
+    // 1行ずつに分けて（split）、すき間をそろえてから、合計と日付を探す
+    const lines = text.split("\n").map(normalizeText);
+    const total = findTotal(lines);
+    const date = findDate(lines.join("\n"));
+
+    // 見つかったものを入力フォームに入れる
+    if (total !== null) amountInput.value = total;
+    if (date !== null) dateInput.value = date;
+
+    // 結果のお知らせ。最後は自分で確かめて「追加する」を押してもらう
+    if (total !== null && date !== null) {
+      ocrStatus.textContent = "読み取りました！金額と日付が合っているか確かめて「追加する」を押してください。";
+    } else if (total !== null) {
+      ocrStatus.textContent = "金額を読み取りました（日付は見つからなかったので、確かめてください）。";
+    } else {
+      ocrStatus.textContent = "合計金額が見つかりませんでした。「読み取った文字を見る」を参考に、手で入力してください。";
+    }
+  } catch (error) {
+    console.error(error); // くわしい原因は開発者ツールに出す
+    ocrStatus.textContent = "読み取りに失敗しました。もう一度試すか、手で入力してください。";
+  } finally {
+    // うまくいってもいかなくても、最後に必ずやること
+    receiptButton.classList.remove("busy");
+    ocrProgress.hidden = true;
+    receiptInput.value = ""; // 同じ写真をもう一度選んでも動くように、選んだ状態を消す
+  }
+});
+
 // ===== 7. 「＜」「＞」で月を切り替える =====
 prevMonthButton.addEventListener("click", function () {
   changeMonth(-1);

@@ -15,6 +15,8 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <!-- 見た目の設定ファイル（style.css）を読み込む -->
   <link rel="stylesheet" href="style.css">
+  <!-- 文字読み取りのライブラリ（Tesseract.js）をインターネットから読み込む。無料で使える -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
   <!-- 動きの設定ファイル（script.js）を読み込む。defer = 画面の部品がそろってから動かす -->
   <script src="script.js" defer></script>
 </head>
@@ -28,6 +30,27 @@
   <!-- ===== 入力フォーム ===== -->
   <section class="card form-card">
   <h2>出費を入力</h2>
+
+  <!-- ===== レシートの読み取り ===== -->
+  <div class="receipt-box">
+    <!-- <label> で包むと、ラベル（ボタンの見た目）を押したときに中の写真選びが開く -->
+    <!-- accept="image/*" = 画像だけ選べる。iPhone では「写真を撮る」「写真を選ぶ」が出る -->
+    <label class="receipt-button">
+      📷 レシートを読み取る
+      <input type="file" id="receipt-input" accept="image/*" class="visually-hidden">
+    </label>
+    <!-- 読み取りの進み具合（script.js が書き換える） -->
+    <p id="ocr-status" class="ocr-status" hidden></p>
+    <progress id="ocr-progress" max="1" value="0" hidden></progress>
+    <!-- 選んだ写真の小さな見本 -->
+    <img id="receipt-preview" class="receipt-preview" alt="レシートの写真" hidden>
+    <!-- <details> は押すと開く折りたたみ。読み取った文字をそのまま見られる -->
+    <details id="ocr-details" hidden>
+      <summary>読み取った文字を見る</summary>
+      <pre id="ocr-text"></pre>
+    </details>
+  </div>
+
   <form id="expense-form">
     <p>
       <label>日付<br>

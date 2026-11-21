@@ -44,6 +44,8 @@ self.addEventListener("activate", function (event) {
 // （ネット優先にしておくと、アプリを直したときに最新版がすぐ届く）
 self.addEventListener("fetch", function (event) {
   if (event.request.method !== "GET") return; // 読み込み以外は何もしない
+  // 外のサイトのファイル（Tesseract.js など）は、ふつうに読み込んでもらう
+  if (new URL(event.request.url).origin !== location.origin) return;
 
   event.respondWith(
     fetch(event.request)
