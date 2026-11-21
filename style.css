@@ -1,0 +1,428 @@
+/* ===== ページ全体 ===== */
+body {
+  font-family: sans-serif;      /* 読みやすい文字の種類 */
+  background-color: #f2f4f7;    /* 背景を薄いグレーに */
+  color: #333333;               /* 文字を真っ黒より少しやわらかい色に */
+  max-width: 480px;             /* 横に広がりすぎないように（スマホ幅くらい） */
+  margin: 0 auto;               /* 画面の中央に寄せる */
+  padding: 16px;                /* 画面のふちとの間にすき間 */
+}
+
+/* ===== 見出し ===== */
+h1 {
+  text-align: center;           /* 中央ぞろえ */
+  color: #e67e22;               /* テーマカラー（緑） */
+}
+
+h2 {
+  font-size: 18px;
+  margin-top: 0;
+}
+
+/* ===== 白いカード（class="card" の部分） ===== */
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;          /* 角を丸く */
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);  /* うっすら影をつける */
+}
+
+/* ===== 入力欄と選択肢 ===== */
+input,
+select,
+textarea {
+  width: 100%;                  /* 横幅いっぱいに広げる */
+  box-sizing: border-box;       /* 幅にすき間や枠線も含めて計算する */
+  padding: 10px;
+  font-size: 16px;              /* スマホで自動ズームされない大きさ */
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  margin-top: 4px;
+  font-family: inherit;         /* textarea も、ページと同じ文字の種類にする */
+}
+
+/* ===== 追加ボタン ===== */
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #e67e22;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;              /* マウスを乗せると指マークに */
+}
+
+/* マウスを乗せたとき、少し濃い色に */
+button:hover {
+  background-color: #24654a;
+}
+
+/* ===== 合計金額 ===== */
+#total {
+  font-size: 24px;
+  color: #2e7d5b;
+}
+
+/* ===== 出費の一覧 ===== */
+#expense-list {
+  list-style: none;             /* 箇条書きの「・」を消す */
+  padding: 0;
+}
+
+#expense-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eeeeee;  /* 行の間に区切り線 */
+  display: flex;                /* 中身（内容と削除ボタン）を横に並べる */
+  align-items: center;          /* 上下の位置を中央にそろえる */
+  gap: 8px;                     /* 内容とボタンの間のすき間 */
+}
+
+/* 内容の部分は、余ったスペースいっぱいに広がる（ボタンを右端に寄せる） */
+#expense-list li span {
+  flex: 1;
+}
+
+/* ===== 削除ボタン ===== */
+/* 上の「button」の設定（緑・横幅いっぱい）を、削除ボタンだけ上書きする */
+.delete-button {
+  width: auto;                  /* 横幅は文字の分だけ */
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: normal;
+  color: #c0392b;               /* 赤い文字 */
+  background-color: #ffffff;
+  border: 1px solid #c0392b;    /* 赤い枠線 */
+}
+
+.delete-button:hover {
+  background-color: #fdecea;    /* マウスを乗せると薄い赤に */
+}
+
+/* ===== 削除の確認ダイアログ ===== */
+dialog {
+  border: none;
+  border-radius: 12px;          /* カードと同じ角丸 */
+  padding: 20px;
+  width: 85%;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: #333333;
+}
+
+/* ダイアログの後ろ（画面全体）を暗くする */
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+#delete-message {
+  background-color: #f2f4f7;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* ボタンを横に2つ並べる */
+.dialog-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* キャンセル：グレー */
+.cancel-button {
+  color: #333333;
+  background-color: #e4e7eb;
+}
+
+.cancel-button:hover {
+  background-color: #d5d9de;
+}
+
+/* 削除する：赤 */
+.danger-button {
+  background-color: #c0392b;
+}
+
+.danger-button:hover {
+  background-color: #a93226;
+}
+
+/* ===== 詳細ボタン ===== */
+/* 削除ボタンと同じ形で、色だけ緑にする */
+.detail-button {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: normal;
+  color: #2e7d5b;
+  background-color: #ffffff;
+  border: 1px solid #2e7d5b;
+}
+
+.detail-button:hover {
+  background-color: #e8f3ee;
+}
+
+/* ===== 詳細・編集ダイアログの中身 ===== */
+/* ダイアログの入力欄の上下のすき間を少し詰める */
+#edit-form p {
+  margin: 0 0 12px 0;
+}
+
+/* fieldset の標準の枠線とすき間を消す */
+#edit-fields {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 見るだけのとき（入力できない欄）は、枠を消して文字として読みやすくする */
+#edit-fields:disabled input,
+#edit-fields:disabled select,
+#edit-fields:disabled textarea {
+  border-color: transparent;
+  background-color: #f2f4f7;
+  color: #333333;
+  opacity: 1;                   /* ブラウザが薄く表示するのを防ぐ */
+  appearance: none;             /* 選択欄の「▼」やカレンダーのマークを消す */
+  resize: none;                 /* メモ欄の大きさ変更のつまみを消す */
+}
+
+/* hidden を付けたボタンの並びは、確実に隠す */
+/* （.dialog-buttons の display: flex が hidden より優先されてしまうため） */
+.dialog-buttons[hidden] {
+  display: none;
+}
+
+/* ===== カレンダー ===== */
+/* 月の切り替え（＜ 2026年11月 ＞） */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 両端にボタン、真ん中に年月 */
+}
+
+#month-label {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.nav-button {
+  width: auto;
+  padding: 6px 14px;
+  color: #333333;
+  background-color: #e4e7eb;
+}
+
+.nav-button:hover {
+  background-color: #d5d9de;
+}
+
+.month-total {
+  text-align: center;
+}
+
+/* 7列のマス目にする */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* 同じ幅の列を7つ */
+  gap: 4px;
+}
+
+/* 曜日の見出し */
+.weekday {
+  text-align: center;
+  font-size: 12px;
+  color: #777777;
+  padding: 4px 0;
+}
+
+/* 日付のマス */
+.day {
+  width: 100%;
+  min-height: 52px;
+  padding: 4px 1px;
+  display: flex;
+  flex-direction: column;       /* 日付と金額を縦に並べる */
+  align-items: center;
+  font-size: 14px;
+  font-weight: normal;
+  color: #333333;
+  background-color: #f7f8fa;
+  border: 2px solid transparent;
+  border-radius: 8px;
+}
+
+.day:hover {
+  background-color: #eef0f3;
+}
+
+/* その日の合計金額（小さい文字） */
+.day-amount {
+  font-size: 10px;
+  color: #2e7d5b;
+  margin-top: 4px;
+}
+
+/* 日曜は赤、土曜は青 */
+.weekday.sun,
+.day.sun .day-number {
+  color: #c0392b;
+}
+
+.weekday.sat,
+.day.sat .day-number {
+  color: #2f6fb3;
+}
+
+/* 日曜・土曜のマスは、背景もうっすら同じ色にする */
+.day.sun {
+  background-color: #fbeeed;    /* うっすら赤 */
+}
+
+.day.sat {
+  background-color: #edf3fa;    /* うっすら青 */
+}
+
+/* マウスを乗せたときは、少しだけ濃くする */
+.day.sun:hover {
+  background-color: #f6dfdc;
+}
+
+.day.sat:hover {
+  background-color: #dde8f5;
+}
+
+/* 今日：太字で背景を薄い緑に */
+.day.today {
+  font-weight: bold;
+  background-color: #e8f3ee;
+}
+
+/* 選んでいる日：緑の枠 */
+.day.selected {
+  border-color: #2e7d5b;
+}
+
+/* 選んだ日の見出し */
+#day-title {
+  font-size: 16px;
+  margin: 16px 0 4px 0;
+}
+
+/* ===== 分類ごとの集計（円グラフ） ===== */
+/* 円グラフ本体。色の塗り分け（background）は script.js が決める */
+.pie-chart {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;           /* 正方形の角を最大まで丸める ＝ 円になる */
+  margin: 8px auto 20px auto;   /* 左右 auto で中央に置く */
+  position: relative;           /* 真ん中の白い丸を、この円を基準に置くため */
+}
+
+/* hidden のときは確実に隠す（.dialog-buttons と同じ理由） */
+.pie-chart[hidden] {
+  display: none;
+}
+
+/* 真ん中の白い丸（ドーナツの穴）。ここに合計を書く */
+.pie-center {
+  position: absolute;
+  inset: 25%;                   /* 上下左右を25%ずつ内側に ＝ 直径が半分の丸 */
+  border-radius: 50%;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;      /* 文字を丸の真ん中に */
+  font-size: 12px;
+  color: #777777;
+  text-align: center;
+}
+
+#pie-total {
+  font-size: 18px;
+  color: #333333;
+}
+
+/* 凡例の1行：色の丸・分類名・金額を横に並べる */
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eeeeee;
+  font-size: 14px;
+}
+
+/* 色の見本の小さな丸 */
+.summary-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;               /* 狭い画面でもつぶれないように */
+}
+
+/* 分類名は余った幅いっぱいに広がる（金額を右端に寄せる） */
+.summary-name {
+  flex: 1;
+}
+
+/* =====================================================
+   PC など大きい画面用の見た目
+   @media (min-width: 900px) { ... } の中の設定は、
+   画面の幅が 900px 以上のときだけ使われる。
+   スマホ（幅が狭い画面）では無視されるので、上の設定のまま。
+   ===================================================== */
+@media (min-width: 900px) {
+  /* ページの最大幅を広げる */
+  body {
+    max-width: 1200px;
+    padding: 24px;
+  }
+
+  /* 3つのカードを「グリッド（マス目）」で並べる
+     左の列：入力フォーム と 集計（上下に並ぶ）
+     右の列：カレンダー（左の2つぶんの高さを使う） */
+  .layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;   /* 左は360px固定、右は残り全部 */
+    grid-template-areas:
+      "form    calendar"
+      "summary calendar";
+    grid-template-rows: auto 1fr;       /* 上の段は中身の高さ、下の段は残り */
+    gap: 16px;                          /* カードの間のすき間 */
+    align-items: start;                 /* カードを上にそろえる */
+  }
+
+  /* それぞれのカードを、上で名前を付けた場所に置く */
+  .form-card     { grid-area: form; }
+  .calendar-card { grid-area: calendar; }
+  .summary-card  { grid-area: summary; }
+
+  /* グリッドの gap ですき間を作るので、カードの下のすき間は消す */
+  .layout .card {
+    margin-bottom: 0;
+  }
+
+  /* カレンダーのマスを大きく、文字も大きくする */
+  .calendar {
+    gap: 6px;
+  }
+
+  .day {
+    min-height: 90px;
+    font-size: 16px;
+    padding: 6px 2px;
+  }
+
+  .day-amount {
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .weekday {
+    font-size: 14px;
+  }
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <!-- 文字化けしないように、文字コードを指定 -->
+  <meta charset="UTF-8">
+  <!-- スマホの画面幅に合わせて表示する設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- ブラウザのタブに表示される名前 -->
+  <title>家計簿</title>
+  <!-- アプリの名前やアイコンを書いたファイル（ホーム画面に追加するときに使われる） -->
+  <link rel="manifest" href="manifest.json">
+  <!-- スマホの上の帯（ステータスバー）の色 -->
+  <meta name="theme-color" content="#e67e22">
+  <!-- iPhone でホーム画面に追加したときのアイコン -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <!-- 見た目の設定ファイル（style.css）を読み込む -->
+  <link rel="stylesheet" href="style.css">
+  <!-- 動きの設定ファイル（script.js）を読み込む。defer = 画面の部品がそろってから動かす -->
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <h1>家計簿</h1>
+
+  <!-- ===== 3つのカードをまとめる入れ物 ===== -->
+  <!-- スマホでは縦に1列、PCでは左右2列に並べる（並べ方は style.css が決める） -->
+  <main class="layout">
+
+  <!-- ===== 入力フォーム ===== -->
+  <section class="card form-card">
+  <h2>出費を入力</h2>
+  <form id="expense-form">
+    <p>
+      <label>日付<br>
+        <input type="date" id="date" required>
+      </label>
+    </p>
+    <p>
+      <label>分類<br>
+        <select id="category">
+          <option>食費</option>
+          <option>日用品</option>
+          <option>交通費</option>
+          <option>趣味・娯楽</option>
+          <option>外食</option>
+          <option>その他</option>
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>金額（円）<br>
+        <input type="number" id="amount" min="1" required>
+      </label>
+    </p>
+    <p>
+      <label>メモ<br>
+        <input type="text" id="memo" placeholder="例: スーパーで買い物">
+      </label>
+    </p>
+    <button type="submit">追加する</button>
+  </form>
+  </section>
+
+  <!-- ===== カレンダーと一覧 ===== -->
+  <section class="card calendar-card">
+  <h2>出費カレンダー</h2>
+
+  <!-- 月の切り替え -->
+  <div class="month-nav">
+    <button type="button" id="prev-month" class="nav-button">＜</button>
+    <span id="month-label"></span>
+    <button type="button" id="next-month" class="nav-button">＞</button>
+  </div>
+  <p class="month-total">この月の合計：<strong id="total">0</strong> 円</p>
+
+  <!-- 曜日の見出し（7列） -->
+  <div class="calendar">
+    <div class="weekday sun">日</div>
+    <div class="weekday">月</div>
+    <div class="weekday">火</div>
+    <div class="weekday">水</div>
+    <div class="weekday">木</div>
+    <div class="weekday">金</div>
+    <div class="weekday sat">土</div>
+  </div>
+  <!-- 日付のマス（script.js が作る） -->
+  <div class="calendar" id="calendar-days"></div>
+
+  <!-- 選んだ日の出費一覧 -->
+  <h3 id="day-title"></h3>
+  <ul id="expense-list">
+    <!-- ここに選んだ日の出費が並ぶ（script.js が追加する） -->
+  </ul>
+  </section>
+
+  <!-- ===== 分類ごとの集計（グラフ） ===== -->
+  <section class="card summary-card">
+  <!-- 見出しの「11月」の部分は script.js が書き換える -->
+  <h2><span id="summary-month"></span>の分類ごとの集計</h2>
+  <!-- 円グラフ（色の塗り分けは script.js が決める）。真ん中に月の合計を出す -->
+  <div id="pie-chart" class="pie-chart" hidden>
+    <div class="pie-center">合計<br><strong id="pie-total"></strong>円</div>
+  </div>
+  <!-- 色の説明（凡例）と金額の一覧（script.js が追加する） -->
+  <div id="category-summary"></div>
+  </section>
+
+  </main>
+
+  <!-- ===== 詳細ダイアログ ===== -->
+  <!-- 最初は「見るだけ」の状態で開き、「編集する」を押すと入力できるようになる -->
+  <dialog id="detail-dialog">
+    <h2 id="detail-title">出費の詳細</h2>
+    <form id="edit-form">
+      <!-- <fieldset> は入力欄のまとまり。disabled を付けると中の欄がすべて入力できなくなる -->
+      <fieldset id="edit-fields" disabled>
+      <p>
+        <label>日付<br>
+          <input type="date" id="edit-date" required>
+        </label>
+      </p>
+      <p>
+        <label>分類<br>
+          <!-- 選択肢は script.js が上の入力フォームからコピーして入れる -->
+          <select id="edit-category"></select>
+        </label>
+      </p>
+      <p>
+        <label>金額（円）<br>
+          <input type="number" id="edit-amount" min="1" required>
+        </label>
+      </p>
+      <p>
+        <label>メモ<br>
+          <!-- <textarea> は複数行の文字を入力できる欄 -->
+          <textarea id="edit-memo" rows="3" placeholder="（メモなし）"></textarea>
+        </label>
+      </p>
+      </fieldset>
+
+      <!-- 見るだけのときのボタン -->
+      <div class="dialog-buttons" id="view-buttons">
+        <button type="button" id="close-detail" class="cancel-button">閉じる</button>
+        <button type="button" id="start-edit">編集する</button>
+      </div>
+
+      <!-- 編集中のボタン（hidden = 最初は隠しておく） -->
+      <div class="dialog-buttons" id="edit-buttons" hidden>
+        <button type="button" id="cancel-edit" class="cancel-button">キャンセル</button>
+        <button type="submit">保存する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== 削除の確認ダイアログ ===== -->
+  <!-- <dialog> は、ふだんは隠れていて、呼び出すと画面の中央に出てくる部品 -->
+  <dialog id="delete-dialog">
+    <h2>この出費を削除しますか？</h2>
+    <p id="delete-message"></p>
+    <div class="dialog-buttons">
+      <button type="button" id="cancel-delete" class="cancel-button">キャンセル</button>
+      <button type="button" id="confirm-delete" class="danger-button">削除する</button>
+    </div>
+  </dialog>
+</body>
+</html>
