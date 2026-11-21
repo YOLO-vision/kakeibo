@@ -531,20 +531,56 @@ function findAmountInLine(line) {
 }
 
 // レシートの文字から合計金額を探す関数
+// 見つかったら { amount: 金額, from: どこから取ったか } を返す。見つからなければ null
 function findTotal(lines) {
-  // 上から順に試す言葉。「合計」がいちばん確実なので先に探す
-  const keywords = ["合計", "お買上", "お買い上げ", "ご請求", "お支払"];
-  for (const keyword of keywords) {
+  // 上から順に試す言葉のグループ。前のグループで見つかれば、そこで終わる
+  // （「合計」は太字で大きく印刷されて読み間違えやすいので、予備の探し方も用意しておく）
+  const keywordGroups = [
+    { from: "合計の行", keywords: ["合計", "お買上", "お買い上げ", "ご請求", "お会計"] },
+    { from: "支払いの行", keywords: ["払い", "支払"] }, // d払い・PayPay払い・お支払 など
+    { from: "小計の行", keywords: ["小計"] },           // 値引きがなければ合計と同じ
+  ];
+  for (const group of keywordGroups) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // 「小計」は合計ではないので飛ばす
-      if (!line.includes(keyword) || line.includes("小計")) continue;
+      // 言葉が1つも入っていない行は飛ばす（some = 「どれか1つでも当てはまるか」）
+      if (!group.keywords.some(function (keyword) { return line.includes(keyword); })) continue;
+      // 小計の行は、小計を探しているとき以外は飛ばす
+      if (group.from !== "小計の行" && line.includes("小計")) continue;
       // その行に数があればそれ。なければ金額が次の行にあることも多いので、次の行を見る
       const amount = findAmountInLine(line) || findAmountInLine(lines[i + 1] || "");
-      if (amount !== null) return amount;
+      if (amount !== null) return { amount: amount, from: group.from };
     }
   }
-  return null; // 見つからなかった
+  // ④ それでもなければ、「\1,234」のように円マークが付いた金額で、いちばん多く出てくるもの
+  //    （合計は「合計」「対象額」「支払い」など、レシートに何度も出てくることが多い）
+  return findMostCommonAmount(lines);
+}
+
+// 円マーク付きの金額を数えて、いちばん多く出てくる金額を返す関数
+function findMostCommonAmount(lines) {
+  const counts = {}; // 「金額 → 出てきた回数」を覚えておく箱
+  for (const line of lines) {
+    // お預り・お釣りの金額は合計ではないので数えない
+    if (line.includes("預") || line.includes("釣")) continue;
+    // 円マークは「\」や「¥」と読まれる。そのあとに続く数を全部取り出す
+    const matches = line.match(/[\\¥￥]\d[\d,]*/g) || [];
+    for (const match of matches) {
+      const amount = Number(match.slice(1).replace(/,/g, ""));
+      if (amount > 0) counts[amount] = (counts[amount] || 0) + 1;
+    }
+  }
+  let best = null;
+  for (const key of Object.keys(counts)) {
+    const amount = Number(key);
+    // 回数が多いほうを選ぶ。同じ回数なら金額が大きいほう（合計は個々の品物より大きい）
+    if (best === null || counts[key] > counts[best] || (counts[key] === counts[best] && amount > best)) {
+      best = amount;
+    }
+  }
+  // 2回以上出てきた金額だけ信用する（1回だけだと品物1つの値段かもしれない）
+  if (best === null || counts[best] < 2) return null;
+  return { amount: best, from: "いちばん多く出てきた金額" };
 }
 
 // レシートの文字から日付を探して "2026-11-21" の形で返す関数
@@ -612,14 +648,23 @@ receiptInput.addEventListener("change", async function () {
     const date = findDate(lines.join("\n"));
 
     // 見つかったものを入力フォームに入れる
-    if (total !== null) amountInput.value = total;
+    if (total !== null) amountInput.value = total.amount;
     if (date !== null) dateInput.value = date;
 
     // 結果のお知らせ。最後は自分で確かめて「追加する」を押してもらう
-    if (total !== null && date !== null) {
-      ocrStatus.textContent = "読み取りました！金額と日付が合っているか確かめて「追加する」を押してください。";
-    } else if (total !== null) {
-      ocrStatus.textContent = "金額を読み取りました（日付は見つからなかったので、確かめてください）。";
+    if (total !== null) {
+      // 例: 「金額 29,271円・日付 11月21日 を読み取りました」
+      let message = "金額 " + formatYen(total.amount) + "円";
+      if (date !== null) {
+        message += "・日付 " + Number(date.slice(5, 7)) + "月" + Number(date.slice(8, 10)) + "日";
+      }
+      message += " を読み取りました。";
+      // 合計の行以外から取ったときは、どこから取ったかを知らせる
+      if (total.from !== "合計の行") {
+        message += "（合計の行がうまく読めなかったので、" + total.from + "から取りました）";
+      }
+      if (date === null) message += "日付は見つからなかったので、確かめてください。";
+      ocrStatus.textContent = message + "合っていたら「追加する」を押してください。";
     } else {
       ocrStatus.textContent = "合計金額が見つかりませんでした。「読み取った文字を見る」を参考に、手で入力してください。";
     }
