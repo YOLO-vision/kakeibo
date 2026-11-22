@@ -21,16 +21,24 @@ const categorySummary = document.getElementById("category-summary");
 const pieChart = document.getElementById("pie-chart");
 const pieTotal = document.getElementById("pie-total");
 
-// 分類ごとの色。分類と色を1対1で決めておくと、月を変えても「食費＝青」のまま変わらない
-const CATEGORY_COLORS = {
-  "食費": "#2a78d6",       // 青
-  "日用品": "#eb6834",     // オレンジ
-  "交通費": "#1baf7a",     // 水色がかった緑
-  "趣味・娯楽": "#eda100", // 黄色
-  "外食": "#e87ba4",       // ピンク
-  "その他": "#9a9893",     // グレー
-};
-// 上の表にない分類（あとで分類を増やしたとき）に使う色
+// 最初の分類と色。分類は家計簿ごとに「分類を編集」で変えられる。
+// 編集したことがない家計簿（と、新しく作った家計簿）は、この分類を使う
+const DEFAULT_CATEGORIES = [
+  { name: "食費", color: "#2a78d6" },       // 青
+  { name: "日用品", color: "#eb6834" },     // オレンジ
+  { name: "交通費", color: "#1baf7a" },     // 水色がかった緑
+  { name: "趣味・娯楽", color: "#eda100" }, // 黄色
+  { name: "外食", color: "#e87ba4" },       // ピンク
+  { name: "その他", color: "#9a9893" },     // グレー
+];
+
+// 「分類を編集」で選べる10色
+const COLOR_PALETTE = [
+  "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4",
+  "#9a9893", "#6250d6", "#d64545", "#14a3b8", "#8d6e63",
+];
+
+// 分類の一覧にない分類（消した分類の古いデータなど）に使う色
 const DEFAULT_COLOR = "#6250d6"; // 紫
 
 // 削除の確認ダイアログの部品
@@ -54,10 +62,6 @@ const editButtons = document.getElementById("edit-buttons");
 const startEditButton = document.getElementById("start-edit");
 const cancelEditButton = document.getElementById("cancel-edit");
 const startDeleteButton = document.getElementById("start-delete");
-
-// 分類の選択肢を、上の入力フォームからそのままコピーする
-// （分類を増やすときは index.html の上のフォーム1か所だけ直せばよい）
-editCategory.innerHTML = categoryInput.innerHTML;
 
 // ===== 色の丸が付いた、自作のプルダウン =====
 // ふつうのプルダウン（<select>）は、開いたときの一覧を iPhone やブラウザが描くので、
@@ -93,28 +97,6 @@ function makeCategoryPicker(select) {
     button.setAttribute("aria-expanded", String(isOpen));
   }
 
-  // 元のプルダウンの選択肢を1つずつ取り出して、一覧の行を作る
-  const optionButtons = [];
-  for (const option of select.options) {
-    const item = document.createElement("li");
-    const optionButton = document.createElement("button");
-    optionButton.type = "button";
-    optionButton.className = "picker-option";
-    optionButton.appendChild(makeDot(option.value));
-    optionButton.append(option.value); // append = 文字を後ろに付け足す
-
-    // 選んだら、隠したプルダウンに値を入れて、一覧を閉じる
-    optionButton.addEventListener("click", function () {
-      select.value = option.value;
-      refresh();
-      setOpen(false);
-    });
-
-    item.appendChild(optionButton);
-    list.appendChild(item);
-    optionButtons.push({ value: option.value, button: optionButton });
-  }
-
   // 欄を押したら、一覧を開く（開いていたら閉じる）
   button.addEventListener("click", function () {
     setOpen(list.hidden);
@@ -125,14 +107,33 @@ function makeCategoryPicker(select) {
     if (!picker.contains(event.target)) setOpen(false);
   });
 
-  // 見た目を、隠したプルダウンの今の値に合わせる関数
+  // 見た目を、隠したプルダウンの今の選択肢と値に合わせる関数
+  // （分類を編集したときに選択肢が変わるので、一覧の行も毎回作り直す）
   function refresh() {
     button.textContent = ""; // いったん空にする
     button.appendChild(makeDot(select.value));
     button.append(select.value);
-    // 一覧の中で、今選んでいる行に印（selected）を付ける
-    for (const entry of optionButtons) {
-      entry.button.classList.toggle("selected", entry.value === select.value);
+
+    // 元のプルダウンの選択肢を1つずつ取り出して、一覧の行を作る
+    list.textContent = "";
+    for (const option of select.options) {
+      const item = document.createElement("li");
+      const optionButton = document.createElement("button");
+      optionButton.type = "button";
+      optionButton.className = "picker-option";
+      optionButton.appendChild(makeDot(option.value));
+      optionButton.append(option.value); // append = 文字を後ろに付け足す
+      // 今選んでいる行に印（selected）を付ける
+      if (option.value === select.value) optionButton.classList.add("selected");
+
+      // 選んだら、隠したプルダウンに値を入れて、一覧を閉じる
+      optionButton.addEventListener("click", function () {
+        select.value = option.value;
+        refresh();
+      });
+
+      item.appendChild(optionButton);
+      list.appendChild(item);
     }
     setOpen(false);
   }
@@ -140,13 +141,8 @@ function makeCategoryPicker(select) {
   picker.appendChild(button);
   picker.appendChild(list);
   select.after(picker); // 隠したプルダウンのすぐ後ろに置く
-  refresh();
   return refresh;
 }
-
-// 入力フォームと詳細ダイアログの「分類」を、自作のプルダウンにする
-const refreshCategoryPicker = makeCategoryPicker(categoryInput);
-const refreshEditCategoryPicker = makeCategoryPicker(editCategory);
 
 // 「どの出費を編集しているか」を覚えておく箱
 let expenseToEdit = null;
@@ -213,7 +209,8 @@ function replaceAllData(newBooks, preferredBookId, shouldSync) {
   // 新しい家計簿を、1冊ずつ保存し直す
   books = newBooks.map(function (book) {
     localStorage.setItem(storageKeyOf(book.id), JSON.stringify(book.expenses));
-    return { id: book.id, name: book.name };
+    // categories が無い家計簿（分類を編集したことがない）は、最初の分類を使う
+    return { id: book.id, name: book.name, categories: book.categories || undefined };
   });
 
   // 開きたい家計簿があればそれ、無ければ1冊目を開く
@@ -231,6 +228,48 @@ function replaceAllData(newBooks, preferredBookId, shouldSync) {
   renderBooks();
   render();
 }
+
+// ===== 家計簿ごとの分類 =====
+// 家計簿の分類の一覧（[{ name: 名前, color: 色 }, …]）を返す関数
+function categoriesOf(book) {
+  return book.categories || DEFAULT_CATEGORIES;
+}
+
+// 今開いている家計簿の分類の一覧
+function currentCategories() {
+  return categoriesOf(currentBook());
+}
+
+// 分類の色を返す関数（一覧にない分類なら DEFAULT_COLOR）
+function colorOf(category) {
+  const found = currentCategories().find(function (c) { return c.name === category; });
+  return found ? found.color : DEFAULT_COLOR;
+}
+
+// 入力フォームと詳細ダイアログの「分類」を、自作のプルダウンにする
+const refreshCategoryPicker = makeCategoryPicker(categoryInput);
+const refreshEditCategoryPicker = makeCategoryPicker(editCategory);
+
+// 分類の選択肢を、今開いている家計簿の分類で作り直す関数
+// （家計簿を切り替えたとき・分類を編集したときに呼ぶ）
+function applyCategories() {
+  const names = currentCategories().map(function (c) { return c.name; });
+  for (const select of [categoryInput, editCategory]) {
+    const previous = select.value; // 今選んでいる分類
+    select.textContent = "";       // 選択肢をいったん空にする
+    for (const name of names) {
+      const option = document.createElement("option");
+      option.textContent = name;
+      select.appendChild(option);
+    }
+    // 前に選んでいた分類がまだあればそのまま、無くなっていれば1つ目にする
+    select.value = names.includes(previous) ? previous : names[0];
+  }
+  refreshCategoryPicker();
+  refreshEditCategoryPicker();
+}
+
+applyCategories(); // 最初に、今の家計簿の分類で選択肢を作る
 
 // ===== 4. 画面に表示している状態を覚えておく箱 =====
 let viewYear = 0;        // 表示している年（例: 2026）
@@ -369,11 +408,6 @@ function renderSummary(monthExpenses) {
     row.appendChild(value);
     categorySummary.appendChild(row);
   }
-}
-
-// 分類の色を返す関数（表にない分類なら DEFAULT_COLOR）
-function colorOf(category) {
-  return CATEGORY_COLORS[category] || DEFAULT_COLOR;
 }
 
 // カレンダーのマスを作る関数
@@ -819,6 +853,7 @@ function currentBook() {
 // タイトルの下のラベルと、メニューの家計簿の一覧を描き直す関数
 function renderBooks() {
   bookBadge.textContent = currentBook().name;
+  applyCategories(); // 分類の選択肢も、今の家計簿の分類にする
   bookList.textContent = ""; // いったん空にする
 
   for (const book of books) {
@@ -946,6 +981,209 @@ deleteBookButton.addEventListener("click", function () {
   );
 });
 
+// ===== 分類を編集 =====
+const categoryDialog = document.getElementById("category-dialog");
+const categoryForm = document.getElementById("category-form");
+const categoryBookName = document.getElementById("category-book-name");
+const categoryRows = document.getElementById("category-rows");
+const addCategoryButton = document.getElementById("add-category");
+const cancelCategoryButton = document.getElementById("cancel-category");
+const categoryError = document.getElementById("category-error");
+const editCategoriesButton = document.getElementById("edit-categories");
+
+// 編集中の分類（保存するまでは、ここだけを書きかえる）
+// 1つずつ { name: 名前, color: 色, originalName: 編集を始めたときの名前（新しく足した分類は null） }
+let draftCategories = [];
+let openPaletteIndex = null; // 色の一覧を開いている行の番号（開いていなければ null）
+
+// 「分類を編集」：今の家計簿の分類を写して、ダイアログを開く
+editCategoriesButton.addEventListener("click", function () {
+  draftCategories = currentCategories().map(function (c) {
+    return { name: c.name, color: c.color, originalName: c.name };
+  });
+  openPaletteIndex = null;
+  categoryBookName.textContent = currentBook().name;
+  categoryError.hidden = true;
+  renderCategoryRows();
+  menuDialog.close();
+  categoryDialog.showModal();
+});
+
+// 小さなボタンを作る関数（↑・↓・× など）
+function makeIconButton(text, label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "icon-button";
+  button.textContent = text;
+  button.setAttribute("aria-label", label); // 読み上げ機能に、何のボタンか伝える
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+// 編集中の分類を、1行ずつ描き直す関数
+function renderCategoryRows() {
+  categoryRows.textContent = "";
+  draftCategories.forEach(function (category, index) {
+    const row = document.createElement("li");
+    row.className = "category-row";
+
+    // 色の丸：押すと、その下に色の一覧が開く
+    const colorButton = document.createElement("button");
+    colorButton.type = "button";
+    colorButton.className = "color-button";
+    colorButton.style.backgroundColor = category.color;
+    colorButton.setAttribute("aria-label", "色を選ぶ");
+    colorButton.addEventListener("click", function () {
+      openPaletteIndex = openPaletteIndex === index ? null : index;
+      renderCategoryRows();
+    });
+
+    // 名前の入力欄：書きかえるたびに、編集中の分類に入れておく
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = category.name;
+    nameInput.maxLength = 12;
+    nameInput.placeholder = "分類の名前";
+    nameInput.addEventListener("input", function () {
+      category.name = nameInput.value;
+    });
+
+    // ↑：1つ上と入れかえる（splice = 配列から取り出して、別の場所に入れる）
+    const upButton = makeIconButton("↑", "上へ", function () {
+      draftCategories.splice(index - 1, 0, draftCategories.splice(index, 1)[0]);
+      openPaletteIndex = null;
+      renderCategoryRows();
+    });
+    upButton.disabled = index === 0; // いちばん上は、上へ動かせない
+
+    // ↓：1つ下と入れかえる
+    const downButton = makeIconButton("↓", "下へ", function () {
+      draftCategories.splice(index + 1, 0, draftCategories.splice(index, 1)[0]);
+      openPaletteIndex = null;
+      renderCategoryRows();
+    });
+    downButton.disabled = index === draftCategories.length - 1; // いちばん下は、下へ動かせない
+
+    // ×：この分類を消す（出費の移し先は、保存するときに確かめる）
+    const deleteButton = makeIconButton("×", "削除", function () {
+      draftCategories.splice(index, 1);
+      openPaletteIndex = null;
+      renderCategoryRows();
+    });
+    deleteButton.disabled = draftCategories.length === 1; // 分類が1つだけなら消せない
+
+    row.append(colorButton, nameInput, upButton, downButton, deleteButton);
+
+    // 色の一覧（この行の丸を押したときだけ出す）
+    if (openPaletteIndex === index) {
+      const palette = document.createElement("div");
+      palette.className = "palette";
+      for (const color of COLOR_PALETTE) {
+        const swatch = document.createElement("button");
+        swatch.type = "button";
+        swatch.className = "swatch";
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("aria-label", "この色にする");
+        if (color === category.color) swatch.classList.add("selected");
+        swatch.addEventListener("click", function () {
+          category.color = color;
+          openPaletteIndex = null;
+          renderCategoryRows();
+        });
+        palette.appendChild(swatch);
+      }
+      row.appendChild(palette);
+    }
+
+    categoryRows.appendChild(row);
+  });
+}
+
+// 「＋ 分類を追加」：まだ使っていない色で、空の分類を1行足す
+addCategoryButton.addEventListener("click", function () {
+  const usedColors = draftCategories.map(function (c) { return c.color; });
+  const color = COLOR_PALETTE.find(function (c) { return !usedColors.includes(c); }) || COLOR_PALETTE[0];
+  draftCategories.push({ name: "", color: color, originalName: null });
+  openPaletteIndex = null;
+  renderCategoryRows();
+  // 足した行の名前の欄に、カーソルを置いておく
+  const inputs = categoryRows.querySelectorAll("input");
+  inputs[inputs.length - 1].focus();
+});
+
+// 「キャンセル」：編集した内容は捨てて閉じる
+cancelCategoryButton.addEventListener("click", function () {
+  categoryDialog.close();
+});
+
+// 「保存する」
+categoryForm.addEventListener("submit", function (event) {
+  event.preventDefault();
+
+  // 名前の前後のすき間を取る
+  for (const category of draftCategories) category.name = category.name.trim();
+  const names = draftCategories.map(function (c) { return c.name; });
+
+  // 名前が空・同じ名前が2つ、はダメ
+  if (names.includes("")) {
+    categoryError.textContent = "名前が空の分類があります";
+    categoryError.hidden = false;
+    return;
+  }
+  // filter で「前にも同じ名前が出てきたもの」を探す
+  const duplicates = names.filter(function (name, i) { return names.indexOf(name) !== i; });
+  if (duplicates.length > 0) {
+    categoryError.textContent = "「" + duplicates[0] + "」が2つあります。ちがう名前にしてください";
+    categoryError.hidden = false;
+    return;
+  }
+
+  // 出費の分類名をどう変えるかの表を作る（「古い名前 → 新しい名前」）
+  const renameTable = {};
+  for (const category of draftCategories) {
+    if (category.originalName !== null) renameTable[category.originalName] = category.name;
+  }
+  // 消した分類：編集を始めたときにはあって、表に入っていない分類
+  const deletedNames = currentCategories()
+    .map(function (c) { return c.name; })
+    .filter(function (name) { return renameTable[name] === undefined; });
+  // 消した分類の出費は、いちばん下の分類に移す
+  const fallback = names[names.length - 1];
+  const movedCount = expenses.filter(function (e) { return deletedNames.includes(e.category); }).length;
+
+  // 実際に保存する処理
+  function applyCategoryChanges() {
+    for (const expense of expenses) {
+      if (renameTable[expense.category] !== undefined) {
+        expense.category = renameTable[expense.category]; // 名前を変えた分類
+      } else if (deletedNames.includes(expense.category)) {
+        expense.category = fallback;                      // 消した分類
+      }
+    }
+    currentBook().categories = draftCategories.map(function (c) {
+      return { name: c.name, color: c.color };
+    });
+    save();           // 出費を保存する
+    saveBooks();      // 家計簿の一覧（分類も入っている）を保存する
+    applyCategories(); // 入力フォームなどの分類の選択肢を作り直す
+    render();         // カレンダー・表・円グラフを描き直す
+    categoryDialog.close();
+    showToast("分類を保存しました");
+  }
+
+  // 消した分類に出費があるときは、移してよいか確かめてから保存する
+  if (movedCount > 0) {
+    askDelete(
+      "分類を削除しますか？",
+      "「" + deletedNames.join("」「") + "」の出費 " + movedCount + "件 は、「" + fallback + "」に移します。",
+      applyCategoryChanges,
+      "保存する"
+    );
+  } else {
+    applyCategoryChanges();
+  }
+});
+
 // ===== バックアップ（保存と戻す） =====
 const exportBackupButton = document.getElementById("export-backup");
 const importBackupButton = document.getElementById("import-backup");
@@ -980,7 +1218,7 @@ exportBackupButton.addEventListener("click", function () {
     currentBookId: currentBookId,
     books: books.map(function (book) {
       // map = 配列の1つ1つを変換して、新しい配列を作る
-      return { id: book.id, name: book.name, expenses: loadExpenses(book.id) };
+      return { id: book.id, name: book.name, categories: book.categories || null, expenses: loadExpenses(book.id) };
     }),
   };
 
@@ -1068,7 +1306,12 @@ function isValidBackup(backup) {
   if (backup.app !== "kakeibo" || !Array.isArray(backup.books) || backup.books.length === 0) return false;
   // every = 全部が条件に合うか
   return backup.books.every(function (book) {
-    return typeof book.id === "string" && typeof book.name === "string" && Array.isArray(book.expenses) &&
+    // 分類（categories）は無くてもよい（分類の編集を作る前のバックアップには入っていない）
+    const categoriesOk = book.categories === undefined || book.categories === null ||
+      (Array.isArray(book.categories) && book.categories.length > 0 && book.categories.every(function (c) {
+        return typeof c.name === "string" && typeof c.color === "string";
+      }));
+    return typeof book.id === "string" && typeof book.name === "string" && categoriesOk && Array.isArray(book.expenses) &&
       book.expenses.every(function (e) {
         return typeof e.date === "string" && typeof e.category === "string" && typeof e.amount === "number";
       });
@@ -1286,8 +1529,11 @@ const CATEGORY_KEYWORDS = {
 // 見つかったら { category: 分類, words: 当てはまった言葉の配列 } を返す。1つもなければ null
 function guessCategory(lines) {
   const text = lines.join("\n"); // 全部の行を1つの文字にまとめる
+  const names = currentCategories().map(function (c) { return c.name; });
   let best = null;
   for (const category of Object.keys(CATEGORY_KEYWORDS)) {
+    // 今の家計簿に無い分類（分類を編集して消した・名前を変えた）は選ばない
+    if (!names.includes(category)) continue;
     // この分類の言葉のうち、レシートに入っているものだけを取り出す（filter = 条件に合うものだけ残す）
     const words = CATEGORY_KEYWORDS[category].filter(function (word) {
       return text.includes(word);

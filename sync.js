@@ -9,7 +9,7 @@
 //
 // Firebase のデータの置き方：
 //   users / （ログインした人の番号） / books / （家計簿の id）
-//     → { name: 名前, order: 並び順, expenses: [出費, …], updatedAt: 保存した時刻 }
+//     → { name: 名前, order: 並び順, categories: [分類, …] か null, expenses: [出費, …], updatedAt: 保存した時刻 }
 
 // Firebase のプロジェクトの「住所」。パスワードではないので、公開しても大丈夫
 // （データは Firebase の「ルール」で、本人しか読み書きできないように守っている）
@@ -76,6 +76,7 @@ function startSync() {
     return {
       name: book.name,
       order: index,                  // 並び順
+      categories: book.categories || null, // 分類（編集したことがなければ null ＝ 最初の分類）
       expenses: loadExpenses(book.id),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(), // Firebase 側の時刻
     };
@@ -111,7 +112,7 @@ function startSync() {
   function applySnapshot(snapshot) {
     const remoteBooks = snapshot.docs.map(function (doc) {
       const data = doc.data();
-      return { id: doc.id, name: data.name, order: data.order, expenses: data.expenses || [] };
+      return { id: doc.id, name: data.name, order: data.order, categories: data.categories || null, expenses: data.expenses || [] };
     });
     if (remoteBooks.length === 0) return;
     // 並び順のとおりに並べる

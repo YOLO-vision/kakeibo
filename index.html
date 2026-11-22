@@ -76,14 +76,8 @@
     </p>
     <p>
       <label>分類<br>
-        <select id="category">
-          <option>食費</option>
-          <option>日用品</option>
-          <option>交通費</option>
-          <option>趣味・娯楽</option>
-          <option>外食</option>
-          <option>その他</option>
-        </select>
+        <!-- 選択肢は script.js が、今開いている家計簿の分類で作る（分類はメニューの「分類を編集」で変えられる） -->
+        <select id="category"></select>
       </label>
     </p>
     <p>
@@ -176,7 +170,7 @@
       </p>
       <p>
         <label>分類<br>
-          <!-- 選択肢は script.js が上の入力フォームからコピーして入れる -->
+          <!-- 選択肢は script.js が、今開いている家計簿の分類で作る -->
           <select id="edit-category"></select>
         </label>
       </p>
@@ -235,6 +229,7 @@
     <button type="button" id="add-book" class="menu-item">＋ 新しい家計簿</button>
 
     <h3 class="drawer-section">この家計簿</h3>
+    <button type="button" id="edit-categories" class="menu-item">分類を編集</button>
     <button type="button" id="rename-book" class="menu-item">名前を変更</button>
     <button type="button" id="delete-book" class="menu-item danger">この家計簿を削除</button>
 
@@ -271,6 +266,23 @@
       </p>
       <div class="dialog-buttons">
         <button type="button" id="cancel-book" class="cancel-button">キャンセル</button>
+        <button type="submit">保存する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== 分類を編集するダイアログ ===== -->
+  <dialog id="category-dialog">
+    <form id="category-form">
+      <h2>分類を編集</h2>
+      <p class="dialog-note">「<span id="category-book-name"></span>」の分類です。丸を押すと色を選べます。↑↓で並び順を変えられます。</p>
+      <!-- 分類の1行ずつ（script.js が作る） -->
+      <ul id="category-rows" class="category-rows"></ul>
+      <button type="button" id="add-category" class="sub-button">＋ 分類を追加</button>
+      <!-- 名前が空・同じ名前がある、などのお知らせ -->
+      <p id="category-error" class="login-error" hidden></p>
+      <div class="dialog-buttons">
+        <button type="button" id="cancel-category" class="cancel-button">キャンセル</button>
         <button type="submit">保存する</button>
       </div>
     </form>

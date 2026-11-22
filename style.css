@@ -405,6 +405,97 @@ dialog.drawer {
   overflow-wrap: anywhere;      /* 長いメールアドレスは折り返す */
 }
 
+/* ===== 分類を編集するダイアログ ===== */
+/* 分類が多いときは、ダイアログの中をスクロール */
+#category-dialog {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.category-rows {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+
+/* 1行：色の丸・名前・↑・↓・× を横に並べる */
+.category-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;              /* 色の一覧は、次の行に折り返して出す */
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* 名前の入力欄は、余った幅いっぱいに */
+.category-row input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  padding: 8px;
+}
+
+/* 色の丸（押せる） */
+.color-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1px #cccccc; /* 白いふちの外に、うすい灰色の線 */
+}
+
+/* ↑ ↓ × の小さなボタン */
+.icon-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: normal;
+  color: #555555;
+  background-color: #f2f4f7;
+}
+
+.icon-button:hover {
+  background-color: #e4e7eb;
+}
+
+/* 押せないとき（いちばん上の↑など）はうすくする */
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* 色の一覧：行の下に、10色の丸を並べる */
+.palette {
+  flex-basis: 100%;             /* 1行まるごと使う（折り返して次の行に出る） */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  background-color: #f7f8fa;
+  border-radius: 8px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* 「＋ 分類を追加」と「キャンセル・保存する」の間をあける */
+#category-form .dialog-buttons {
+  margin-top: 16px;
+}
+
+/* 今の色：外側に黒い輪を付ける */
+.swatch.selected {
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #333333;
+}
+
 /* ===== ログインのダイアログ ===== */
 #login-form p {
   margin: 0 0 12px 0;
@@ -747,6 +838,7 @@ dialog::backdrop {
   padding: 6px 8px;
   text-align: right;
   border-bottom: 1px solid #eeeeee;
+  border-right: 1px solid #eeeeee; /* 分類の列の間に、うすい縦線 */
   background-color: #ffffff;    /* 左に止める日付の列が、スクロールした金額と重ならないように */
 }
 
