@@ -59,6 +59,95 @@ const startDeleteButton = document.getElementById("start-delete");
 // （分類を増やすときは index.html の上のフォーム1か所だけ直せばよい）
 editCategory.innerHTML = categoryInput.innerHTML;
 
+// ===== 色の丸が付いた、自作のプルダウン =====
+// ふつうのプルダウン（<select>）は、開いたときの一覧を iPhone やブラウザが描くので、
+// 色の丸を付けられない。そこで <select> は隠して「値を入れておく場所」としてだけ使い、
+// 見た目は自分で作ったボタンと一覧で出す。
+
+// 分類の色の小さな丸を作る関数
+function makeDot(category) {
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  dot.style.backgroundColor = colorOf(category);
+  return dot;
+}
+
+// <select> を、自作のプルダウンに置きかえる関数
+// 戻り値は「見た目を今の値に合わせ直す関数」。プログラムで値を変えたあとに呼ぶ
+function makeCategoryPicker(select) {
+  select.hidden = true; // 元のプルダウンは隠す（値はここに入れ続ける）
+
+  const picker = document.createElement("div");   // 全体の入れ物
+  picker.className = "picker";
+  const button = document.createElement("button"); // 閉じているときに見える欄
+  button.type = "button";
+  button.className = "picker-button";
+  button.setAttribute("aria-expanded", "false");   // 読み上げ機能に「閉じている」と伝える
+  const list = document.createElement("ul");       // 押すと開く一覧
+  list.className = "picker-list";
+  list.hidden = true;
+
+  // 一覧を開く・閉じる関数（isOpen が true なら開く）
+  function setOpen(isOpen) {
+    list.hidden = !isOpen;
+    button.setAttribute("aria-expanded", String(isOpen));
+  }
+
+  // 元のプルダウンの選択肢を1つずつ取り出して、一覧の行を作る
+  const optionButtons = [];
+  for (const option of select.options) {
+    const item = document.createElement("li");
+    const optionButton = document.createElement("button");
+    optionButton.type = "button";
+    optionButton.className = "picker-option";
+    optionButton.appendChild(makeDot(option.value));
+    optionButton.append(option.value); // append = 文字を後ろに付け足す
+
+    // 選んだら、隠したプルダウンに値を入れて、一覧を閉じる
+    optionButton.addEventListener("click", function () {
+      select.value = option.value;
+      refresh();
+      setOpen(false);
+    });
+
+    item.appendChild(optionButton);
+    list.appendChild(item);
+    optionButtons.push({ value: option.value, button: optionButton });
+  }
+
+  // 欄を押したら、一覧を開く（開いていたら閉じる）
+  button.addEventListener("click", function () {
+    setOpen(list.hidden);
+  });
+
+  // 一覧の外をタップしたら閉じる
+  document.addEventListener("click", function (event) {
+    if (!picker.contains(event.target)) setOpen(false);
+  });
+
+  // 見た目を、隠したプルダウンの今の値に合わせる関数
+  function refresh() {
+    button.textContent = ""; // いったん空にする
+    button.appendChild(makeDot(select.value));
+    button.append(select.value);
+    // 一覧の中で、今選んでいる行に印（selected）を付ける
+    for (const entry of optionButtons) {
+      entry.button.classList.toggle("selected", entry.value === select.value);
+    }
+    setOpen(false);
+  }
+
+  picker.appendChild(button);
+  picker.appendChild(list);
+  select.after(picker); // 隠したプルダウンのすぐ後ろに置く
+  refresh();
+  return refresh;
+}
+
+// 入力フォームと詳細ダイアログの「分類」を、自作のプルダウンにする
+const refreshCategoryPicker = makeCategoryPicker(categoryInput);
+const refreshEditCategoryPicker = makeCategoryPicker(editCategory);
+
 // 「どの出費を編集しているか」を覚えておく箱
 let expenseToEdit = null;
 
@@ -403,6 +492,7 @@ function describe(expense) {
 function fillDetail() {
   editDate.value = expenseToEdit.date;
   editCategory.value = expenseToEdit.category;
+  refreshEditCategoryPicker(); // 自作のプルダウンの見た目も合わせる
   editAmount.value = expenseToEdit.amount;
   editMemo.value = expenseToEdit.memo;
 }
@@ -744,7 +834,10 @@ receiptInput.addEventListener("change", async function () {
     // 見つかったものを入力フォームに入れる
     if (total !== null) amountInput.value = total.amount;
     if (date !== null) dateInput.value = date;
-    if (guess !== null) categoryInput.value = guess.category;
+    if (guess !== null) {
+      categoryInput.value = guess.category;
+      refreshCategoryPicker(); // 自作のプルダウンの見た目も合わせる
+    }
 
     // 結果のお知らせ。最後は自分で確かめて「追加する」を押してもらう
     if (total !== null) {

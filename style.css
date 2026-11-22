@@ -127,6 +127,102 @@ button:hover {
   display: none;
 }
 
+/* ===== 色の丸が付いた、自作のプルダウン ===== */
+/* 分類の色の小さな丸 */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;               /* つぶれないように */
+}
+
+/* 全体の入れ物。開いた一覧を、この入れ物を基準にすぐ下へ置くため */
+.picker {
+  position: relative;
+  margin-top: 4px;
+}
+
+/* 閉じているときに見える欄：ほかの入力欄と同じ見た目にする */
+/* （上の「button」の設定＝オレンジ・太字を上書きする） */
+.picker-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;                     /* 丸と文字のすき間 */
+  padding: 10px;
+  font-size: 16px;
+  font-weight: normal;
+  font-family: inherit;
+  color: #333333;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  text-align: left;
+}
+
+/* 右はしの「▼」。::after = 中身の後ろに、CSS だけで飾りを足す書き方 */
+.picker-button::after {
+  content: "▼";
+  margin-left: auto;            /* 残りのすき間を左に取って、右はしに寄せる */
+  font-size: 10px;
+  color: #777777;
+}
+
+.picker-button:hover {
+  background-color: #ffffff;    /* マウスを乗せてもオレンジにしない */
+  border-color: var(--main);
+}
+
+/* 詳細ダイアログの「見るだけ」のとき：ほかの欄と同じく、枠と▼を消す */
+.picker-button:disabled {
+  border-color: transparent;
+  background-color: #f2f4f7;
+  cursor: default;
+}
+
+.picker-button:disabled::after {
+  content: none;
+}
+
+/* 押すと開く一覧：欄のすぐ下に浮かべて、下の入力欄の上に重ねる */
+.picker-list {
+  position: absolute;
+  top: 100%;                    /* 入れ物のすぐ下 */
+  left: 0;
+  right: 0;
+  z-index: 5;                   /* 下の入力欄より手前に出す */
+  list-style: none;             /* 箇条書きの「・」を消す */
+  margin: 4px 0 0 0;
+  padding: 4px;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 一覧の1行 */
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 16px;
+  font-weight: normal;
+  color: #333333;
+  background-color: transparent;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.picker-option:hover {
+  background-color: var(--main-light);
+}
+
+/* 今選んでいる行：うすいオレンジの背景と太字 */
+.picker-option.selected {
+  background-color: var(--main-light);
+  font-weight: bold;
+}
+
 /* ===== お知らせ（トースト） ===== */
 /* 画面の下の真ん中に浮かべておき、ふだんは透明にして見えなくしておく */
 .toast {
