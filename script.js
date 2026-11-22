@@ -614,7 +614,7 @@ confirmDeleteButton.addEventListener("click", function () {
 });
 
 // ===== メニューと、家計簿の切り替え =====
-const bookTitle = document.getElementById("book-title");
+const bookBadge = document.getElementById("book-badge");
 const menuButton = document.getElementById("menu-button");
 const menuDialog = document.getElementById("menu-dialog");
 const closeMenuButton = document.getElementById("close-menu");
@@ -637,9 +637,9 @@ function currentBook() {
   return books.find(function (book) { return book.id === currentBookId; });
 }
 
-// 見出しの名前と、メニューの家計簿の一覧を描き直す関数
+// タイトルの下のラベルと、メニューの家計簿の一覧を描き直す関数
 function renderBooks() {
-  bookTitle.textContent = currentBook().name;
+  bookBadge.textContent = currentBook().name;
   bookList.textContent = ""; // いったん空にする
 
   for (const book of books) {
@@ -677,11 +677,15 @@ function switchBook(bookId) {
   render();                        // カレンダーなどを描き直す
 }
 
-// ☰ を押したら、メニューを開く
-menuButton.addEventListener("click", function () {
+// メニューを開く関数
+function openMenu() {
   renderBooks();
   menuDialog.showModal();
-});
+}
+
+// ☰ を押しても、家計簿の名前のラベルを押しても、メニューを開く
+menuButton.addEventListener("click", openMenu);
+bookBadge.addEventListener("click", openMenu);
 
 // × を押したら、メニューを閉じる
 closeMenuButton.addEventListener("click", function () {
@@ -759,7 +763,7 @@ deleteBookButton.addEventListener("click", function () {
   );
 });
 
-renderBooks(); // 最初に、見出しの名前を今の家計簿にしておく
+renderBooks(); // 最初に、タイトルの下のラベルを今の家計簿の名前にしておく
 
 // ===== レシートの読み取り（Tesseract.js） =====
 const receiptInput = document.getElementById("receipt-input");

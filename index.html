@@ -23,8 +23,10 @@
 <body>
   <!-- ===== いちばん上の帯：家計簿の名前と、右上のメニューボタン ===== -->
   <header class="app-header">
-    <!-- 今開いている家計簿の名前（script.js が書き換える） -->
-    <h1 id="book-title">家計簿</h1>
+    <!-- アプリのタイトル（どの家計簿を開いても「家計簿」のまま） -->
+    <h1>家計簿</h1>
+    <!-- 今開いている家計簿の名前のラベル（script.js が書き換える）。押すとメニューが開く -->
+    <button type="button" id="book-badge" class="book-badge"></button>
     <!-- ハンバーガーメニューのボタン。3本の線（span）で「☰」の形を描く -->
     <!-- aria-label = 画面の読み上げ機能に「メニュー」と伝える（見た目に文字がないため） -->
     <button type="button" id="menu-button" class="menu-button" aria-label="メニュー">

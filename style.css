@@ -226,20 +226,45 @@ button:hover {
 /* ===== いちばん上の帯（家計簿の名前とメニューボタン） ===== */
 .app-header {
   position: relative;           /* メニューボタンを、この帯を基準に右はしへ置くため */
+  text-align: center;           /* タイトルとラベルを真ん中に */
+  padding-top: 12px;
+  margin-bottom: 16px;
 }
 
-/* 名前が長くても、右のメニューボタンと重ならないように左右をあける */
 .app-header h1 {
-  padding: 0 48px;
+  margin: 0 0 6px 0;
+  line-height: 44px;            /* 右のメニューボタンと同じ高さにして、横一列にそろえる */
+}
+
+/* 今開いている家計簿の名前のラベル：うすいオレンジの丸い札 */
+/* （上の「button」の設定＝横幅いっぱい・オレンジを上書きする） */
+.book-badge {
+  display: inline-block;
+  width: auto;
+  max-width: calc(100% - 96px); /* 長い名前でも、右のメニューボタンと重ならないように */
+  padding: 4px 14px;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--main-dark);
+  background-color: var(--main-light);
+  border-radius: 999px;         /* 大きく丸めて、両はしを半円にする */
   overflow-wrap: anywhere;      /* 長い名前は折り返す */
 }
 
-/* ☰ ボタン：帯の右はし・上下の真ん中に置く */
+/* 名前の後ろに「▾」を付けて、押せることがわかるようにする */
+.book-badge::after {
+  content: " ▾";
+}
+
+.book-badge:hover {
+  background-color: #fae3cf;    /* 少しだけ濃いオレンジ */
+}
+
+/* ☰ ボタン：帯の右はし、タイトルと同じ高さに置く */
 .menu-button {
   position: absolute;
   right: 0;
-  top: 50%;
-  transform: translateY(-50%);  /* 自分の高さの半分だけ上げて、ちょうど真ん中に */
+  top: 12px;                    /* 帯の上のすき間（padding-top）と同じ */
   width: 44px;                  /* 指で押しやすい大きさ */
   height: 44px;
   padding: 0;
