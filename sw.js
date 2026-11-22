@@ -3,7 +3,7 @@
 // 「ネットにつながらないときは、前に保存しておいたファイルを使う」ようにする。
 
 // 保存場所（キャッシュ）の名前。仕組みを大きく変えたときは、末尾の数字を上げる
-const CACHE_NAME = "kakeibo-v1";
+const CACHE_NAME = "kakeibo-v2";
 
 // 最初にまとめて保存しておくファイルの一覧
 const FILES = [
@@ -11,6 +11,7 @@ const FILES = [
   "./index.html",
   "./style.css",
   "./script.js",
+  "./sync.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

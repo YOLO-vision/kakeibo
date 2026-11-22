@@ -395,6 +395,69 @@ dialog.drawer {
   margin: -6px 0 4px 12px;      /* 上のボタンに少し寄せる */
 }
 
+/* ===== 同期（メニューの中） ===== */
+/* 「メールアドレス」と「自動で同期しています ✓」の2行 */
+.sync-status {
+  font-size: 13px;
+  color: #555555;
+  margin: 0 0 4px 12px;
+  white-space: pre-line;        /* 文字の中の改行（\n）で、本当に改行する */
+  overflow-wrap: anywhere;      /* 長いメールアドレスは折り返す */
+}
+
+/* ===== ログインのダイアログ ===== */
+#login-form p {
+  margin: 0 0 12px 0;
+}
+
+/* 説明の小さな文字 */
+.dialog-note {
+  font-size: 13px;
+  color: #777777;
+}
+
+/* うまくいかなかった理由：赤い文字 */
+.login-error {
+  font-size: 14px;
+  color: #c0392b;
+  background-color: #fdecea;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+/* 「はじめての方：新しく登録」：白地にオレンジの枠 */
+.sub-button {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--main-dark);
+  background-color: #ffffff;
+  border: 1px solid var(--main);
+}
+
+.sub-button:hover {
+  background-color: var(--main-light);
+}
+
+/* 「パスワードを忘れたとき」「閉じる」：文字だけの小さなボタン */
+.link-button {
+  margin-top: 4px;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: normal;
+  color: #777777;
+  background-color: transparent;
+}
+
+.link-button:hover {
+  background-color: #f2f4f7;
+}
+
+/* 待っているあいだ（押せないボタン）は、うすくする */
+#login-form button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* 押せないとき（家計簿が1冊だけのときの削除）は、うすくする */
 .menu-item:disabled {
   opacity: 0.4;

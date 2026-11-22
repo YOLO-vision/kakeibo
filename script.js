@@ -186,15 +186,50 @@ function loadExpenses(bookId) {
 let expenses = loadExpenses(currentBookId);
 
 // ===== 3. データを保存する関数 =====
+// 保存したら「保存したよ」という合図（イベント）を出す。
+// 同期の係（sync.js）がこの合図を聞いて、Firebase にも送る。
+// （合図を聞く人がいなければ、何も起きない。ログインしていないときはこちら）
 function save() {
   // 配列を文字に変換して（JSON.stringify）、今開いている家計簿の場所に保存する
   localStorage.setItem(storageKeyOf(currentBookId), JSON.stringify(expenses));
+  // detail に「どの家計簿か」を入れて合図を出す
+  document.dispatchEvent(new CustomEvent("kakeibo-book-saved", { detail: { bookId: currentBookId } }));
 }
 
-// 家計簿の一覧と、今開いている家計簿を保存する関数
+// 家計簿の一覧（追加・名前の変更・削除）を保存する関数
 function saveBooks() {
   localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
   localStorage.setItem(CURRENT_BOOK_KEY, currentBookId);
+  document.dispatchEvent(new CustomEvent("kakeibo-books-saved"));
+}
+
+// 全部の家計簿のデータを、まとめて置きかえる関数（バックアップから戻す・同期で受け取ったとき）
+// newBooks = [{ id, name, expenses }, …]、preferredBookId = 開きたい家計簿
+// shouldSync = Firebase にも送るか（同期で受け取ったデータを送り返さないように、false にできる）
+function replaceAllData(newBooks, preferredBookId, shouldSync) {
+  // 今の家計簿の出費のデータを、全部消す
+  for (const book of books) localStorage.removeItem(storageKeyOf(book.id));
+
+  // 新しい家計簿を、1冊ずつ保存し直す
+  books = newBooks.map(function (book) {
+    localStorage.setItem(storageKeyOf(book.id), JSON.stringify(book.expenses));
+    return { id: book.id, name: book.name };
+  });
+
+  // 開きたい家計簿があればそれ、無ければ1冊目を開く
+  const exists = books.some(function (book) { return book.id === preferredBookId; });
+  currentBookId = exists ? preferredBookId : books[0].id;
+  expenses = loadExpenses(currentBookId);
+
+  if (shouldSync) {
+    saveBooks(); // 一覧を保存して、Firebase にも送る
+  } else {
+    // 一覧を保存するだけ（合図は出さない）
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+    localStorage.setItem(CURRENT_BOOK_KEY, currentBookId);
+  }
+  renderBooks();
+  render();
 }
 
 // ===== 4. 画面に表示している状態を覚えておく箱 =====
@@ -594,25 +629,39 @@ const deleteTitle = document.getElementById("delete-title");
 // 削除の確認ダイアログを出す関数
 // title = 見出し、message = 消すものの説明、action = 「削除する」を押したときにやること
 // buttonLabel = 赤いボタンの文字（書かなければ「削除する」）
-function askDelete(title, message, action, buttonLabel) {
+// cancelAction = 「キャンセル」を押したときにやること（書かなければ、閉じるだけ）
+let deleteCancelAction = null;
+function askDelete(title, message, action, buttonLabel, cancelAction) {
   deleteTitle.textContent = title;
   deleteMessage.textContent = message;
   deleteAction = action;
+  deleteCancelAction = cancelAction || null;
   confirmDeleteButton.textContent = buttonLabel || "削除する";
   deleteDialog.showModal(); // 確認ダイアログを画面中央に出す
 }
 
-// 「キャンセル」：ダイアログを閉じるだけ
+// 「キャンセル」：ダイアログを閉じる（やることが決まっていれば、それもやる）
 cancelDeleteButton.addEventListener("click", function () {
+  const cancelAction = deleteCancelAction;
   deleteAction = null;
+  deleteCancelAction = null;
   deleteDialog.close();
+  if (cancelAction !== null) cancelAction();
+});
+
+// PC で Esc キーを押して閉じたときも、「キャンセル」と同じにする
+deleteDialog.addEventListener("cancel", function (event) {
+  event.preventDefault(); // ふつうの閉じ方を止めて
+  cancelDeleteButton.click(); // 「キャンセル」を押したことにする
 });
 
 // 「削除する」：覚えておいた「やること」を実行する
 confirmDeleteButton.addEventListener("click", function () {
-  if (deleteAction !== null) deleteAction();
+  const action = deleteAction;
   deleteAction = null;
+  deleteCancelAction = null;
   deleteDialog.close();
+  if (action !== null) action();
 });
 
 // ===== メニューと、家計簿の切り替え =====
@@ -674,7 +723,8 @@ function renderBooks() {
 function switchBook(bookId) {
   currentBookId = bookId;
   expenses = loadExpenses(bookId); // その家計簿の出費を読み込む
-  saveBooks();                     // 「最後に開いていた家計簿」を覚えておく
+  // 「最後に開いていた家計簿」を覚えておく（これは機械ごとでよいので、同期はしない）
+  localStorage.setItem(CURRENT_BOOK_KEY, currentBookId);
   renderBooks();
   render();                        // カレンダーなどを描き直す
 }
@@ -737,7 +787,8 @@ bookForm.addEventListener("submit", function (event) {
     // 新しい家計簿を作る。id は今の時刻の数字を使う（毎回ちがう数になる）
     const book = { id: "b" + Date.now(), name: name };
     books.push(book);
-    switchBook(book.id); // 作った家計簿に切り替える（ここで一覧も保存される）
+    switchBook(book.id); // 作った家計簿に切り替える
+    saveBooks();         // 家計簿の一覧を保存する
     showToast("「" + name + "」を作りました");
   } else {
     currentBook().name = name;
@@ -761,6 +812,7 @@ deleteBookButton.addEventListener("click", function () {
       // filter = 条件に合うものだけ残す（消す家計簿以外を残す）
       books = books.filter(function (b) { return b.id !== book.id; });
       switchBook(books[0].id); // 残っている最初の家計簿に切り替える
+      saveBooks();             // 家計簿の一覧を保存する
       showToast("「" + book.name + "」を削除しました");
     }
   );
@@ -897,18 +949,8 @@ function isValidBackup(backup) {
 
 // バックアップの内容で、今のデータを置きかえる関数
 function restoreBackup(backup) {
-  // 今の家計簿の出費のデータを、全部消す
-  for (const book of books) localStorage.removeItem(storageKeyOf(book.id));
-
-  // バックアップの家計簿を、1冊ずつ保存し直す
-  books = backup.books.map(function (book) {
-    localStorage.setItem(storageKeyOf(book.id), JSON.stringify(book.expenses));
-    return { id: book.id, name: book.name };
-  });
-
-  // バックアップを取ったときに開いていた家計簿を開く（無ければ1冊目）
-  const exists = books.some(function (book) { return book.id === backup.currentBookId; });
-  switchBook(exists ? backup.currentBookId : books[0].id); // ここで一覧も保存される
+  // バックアップを取ったときに開いていた家計簿を開く。ログイン中なら Firebase にも送る
+  replaceAllData(backup.books, backup.currentBookId, true);
   showToast("バックアップから戻しました");
 }
 
