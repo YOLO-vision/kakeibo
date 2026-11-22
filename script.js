@@ -151,20 +151,50 @@ const refreshEditCategoryPicker = makeCategoryPicker(editCategory);
 // 「どの出費を編集しているか」を覚えておく箱
 let expenseToEdit = null;
 
-// 「どの出費を消そうとしているか」を覚えておく箱（何も選んでいないときは null）
-let expenseToDelete = null;
+// 削除ダイアログで「削除する」を押したときにやること（関数）を覚えておく箱
+// 出費の削除と家計簿の削除で、同じダイアログを使い回すため
+let deleteAction = null;
 
-// ===== 2. 出費のデータを入れておく箱 =====
+// ===== 2. 家計簿の一覧と、出費のデータを入れておく箱 =====
 // 保存しておく場所（ブラウザの中）での名前
-const STORAGE_KEY = "kakeibo-expenses";
+const STORAGE_KEY = "kakeibo-expenses";          // 出費（1冊目）
+const BOOKS_KEY = "kakeibo-books";               // 家計簿の一覧
+const CURRENT_BOOK_KEY = "kakeibo-current-book"; // 最後に開いていた家計簿
 
-// ブラウザに保存されているデータを読み込む。何もなければ空の配列 [] から始める
-let expenses = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+// 家計簿の一覧。1冊ずつ { id: 見分けるための記号, name: 名前 } で入っている
+// まだ1冊もなければ（前の版から使っている人も）、今までのデータを1冊目「家計簿」にする
+let books = JSON.parse(localStorage.getItem(BOOKS_KEY)) || [{ id: "default", name: "家計簿" }];
+
+// 今開いている家計簿の id。保存されていない・もう無い家計簿なら1冊目にする
+let currentBookId = localStorage.getItem(CURRENT_BOOK_KEY);
+if (!books.some(function (book) { return book.id === currentBookId; })) {
+  currentBookId = books[0].id;
+}
+
+// 家計簿ごとの、出費の保存場所の名前を返す関数
+// 1冊目（default）は今までと同じ名前を使うので、前の版のデータがそのまま読める
+function storageKeyOf(bookId) {
+  return bookId === "default" ? STORAGE_KEY : STORAGE_KEY + "-" + bookId;
+}
+
+// 指定した家計簿の出費を読み込む。何もなければ空の配列 [] から始める
+function loadExpenses(bookId) {
+  return JSON.parse(localStorage.getItem(storageKeyOf(bookId))) || [];
+}
+
+// 今開いている家計簿の出費
+let expenses = loadExpenses(currentBookId);
 
 // ===== 3. データを保存する関数 =====
 function save() {
-  // 配列を文字に変換して（JSON.stringify）、ブラウザに保存する
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+  // 配列を文字に変換して（JSON.stringify）、今開いている家計簿の場所に保存する
+  localStorage.setItem(storageKeyOf(currentBookId), JSON.stringify(expenses));
+}
+
+// 家計簿の一覧と、今開いている家計簿を保存する関数
+function saveBooks() {
+  localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+  localStorage.setItem(CURRENT_BOOK_KEY, currentBookId);
 }
 
 // ===== 4. 画面に表示している状態を覚えておく箱 =====
@@ -543,32 +573,193 @@ editForm.addEventListener("submit", function (event) {
 
 // 「この出費を削除」：詳細ダイアログを閉じて、削除の確認ダイアログを出す
 startDeleteButton.addEventListener("click", function () {
-  expenseToDelete = expenseToEdit;   // 消す候補を覚えておく
+  const target = expenseToEdit; // 消す候補
   expenseToEdit = null;
-  deleteMessage.textContent = describe(expenseToDelete); // ダイアログに内容を表示
   detailDialog.close();
-  deleteDialog.showModal();          // 確認ダイアログを画面中央に出す
+  // 「削除する」が押されたら、下の function の中身が動く
+  askDelete("この出費を削除しますか？", describe(target), function () {
+    const index = expenses.indexOf(target); // 何番目にあるか調べる
+    if (index !== -1) {           // 見つかったときだけ（見つからないと -1 になる）
+      expenses.splice(index, 1);  // その位置から1件取り除く
+      save();                     // 保存する
+      render();                   // 画面を描き直す
+      showToast(describe(target) + " を削除しました");
+    }
+  });
 });
 
-// ===== 削除ダイアログのボタン =====
+// ===== 削除の確認ダイアログ =====
+const deleteTitle = document.getElementById("delete-title");
+
+// 削除の確認ダイアログを出す関数
+// title = 見出し、message = 消すものの説明、action = 「削除する」を押したときにやること
+function askDelete(title, message, action) {
+  deleteTitle.textContent = title;
+  deleteMessage.textContent = message;
+  deleteAction = action;
+  deleteDialog.showModal(); // 確認ダイアログを画面中央に出す
+}
+
 // 「キャンセル」：ダイアログを閉じるだけ
 cancelDeleteButton.addEventListener("click", function () {
-  expenseToDelete = null;
+  deleteAction = null;
   deleteDialog.close();
 });
 
-// 「削除する」：覚えておいた出費を配列から取り除く
+// 「削除する」：覚えておいた「やること」を実行する
 confirmDeleteButton.addEventListener("click", function () {
-  const index = expenses.indexOf(expenseToDelete); // 何番目にあるか調べる
-  if (index !== -1) {           // 見つかったときだけ（見つからないと -1 になる）
-    expenses.splice(index, 1);  // その位置から1件取り除く
-    save();                     // 保存する
-    render();                   // 画面を描き直す
-    showToast(describe(expenseToDelete) + " を削除しました");
-  }
-  expenseToDelete = null;
+  if (deleteAction !== null) deleteAction();
+  deleteAction = null;
   deleteDialog.close();
 });
+
+// ===== メニューと、家計簿の切り替え =====
+const bookTitle = document.getElementById("book-title");
+const menuButton = document.getElementById("menu-button");
+const menuDialog = document.getElementById("menu-dialog");
+const closeMenuButton = document.getElementById("close-menu");
+const bookList = document.getElementById("book-list");
+const addBookButton = document.getElementById("add-book");
+const renameBookButton = document.getElementById("rename-book");
+const deleteBookButton = document.getElementById("delete-book");
+const bookDialog = document.getElementById("book-dialog");
+const bookForm = document.getElementById("book-form");
+const bookDialogTitle = document.getElementById("book-dialog-title");
+const bookNameInput = document.getElementById("book-name");
+const cancelBookButton = document.getElementById("cancel-book");
+
+// 名前のダイアログを「追加」と「名前の変更」のどちらで開いたかを覚えておく箱
+let bookDialogMode = "add";
+
+// 今開いている家計簿（{ id, name }）を返す関数
+// find = 条件に合う最初の1つを探す
+function currentBook() {
+  return books.find(function (book) { return book.id === currentBookId; });
+}
+
+// 見出しの名前と、メニューの家計簿の一覧を描き直す関数
+function renderBooks() {
+  bookTitle.textContent = currentBook().name;
+  bookList.textContent = ""; // いったん空にする
+
+  for (const book of books) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "book-item";
+    button.textContent = book.name;
+    // 今開いている家計簿には印（current）を付ける
+    if (book.id === currentBookId) button.classList.add("current");
+
+    // 押したら、その家計簿に切り替えてメニューを閉じる
+    button.addEventListener("click", function () {
+      menuDialog.close();
+      if (book.id !== currentBookId) {
+        switchBook(book.id);
+        showToast("「" + book.name + "」に切り替えました");
+      }
+    });
+
+    item.appendChild(button);
+    bookList.appendChild(item);
+  }
+
+  // 家計簿が1冊しかないときは削除できないようにする（0冊になってしまうため）
+  deleteBookButton.disabled = books.length === 1;
+}
+
+// 家計簿を切り替える関数
+function switchBook(bookId) {
+  currentBookId = bookId;
+  expenses = loadExpenses(bookId); // その家計簿の出費を読み込む
+  saveBooks();                     // 「最後に開いていた家計簿」を覚えておく
+  renderBooks();
+  render();                        // カレンダーなどを描き直す
+}
+
+// ☰ を押したら、メニューを開く
+menuButton.addEventListener("click", function () {
+  renderBooks();
+  menuDialog.showModal();
+});
+
+// × を押したら、メニューを閉じる
+closeMenuButton.addEventListener("click", function () {
+  menuDialog.close();
+});
+
+// メニューの外側（暗いところ）を押しても閉じる
+// （外側を押すと、ダイアログそのものが押されたことになるので見分けられる）
+menuDialog.addEventListener("click", function (event) {
+  if (event.target === menuDialog) menuDialog.close();
+});
+
+// 名前のダイアログを開く関数（mode は "add" か "rename"）
+function openBookDialog(mode) {
+  bookDialogMode = mode;
+  if (mode === "add") {
+    bookDialogTitle.textContent = "新しい家計簿";
+    bookNameInput.value = "";
+  } else {
+    bookDialogTitle.textContent = "家計簿の名前を変更";
+    bookNameInput.value = currentBook().name;
+  }
+  bookDialog.showModal();
+}
+
+// 「＋ 新しい家計簿」「名前を変更」
+addBookButton.addEventListener("click", function () {
+  openBookDialog("add");
+});
+renameBookButton.addEventListener("click", function () {
+  openBookDialog("rename");
+});
+
+// 名前のダイアログの「キャンセル」
+cancelBookButton.addEventListener("click", function () {
+  bookDialog.close();
+});
+
+// 名前のダイアログの「保存する」
+bookForm.addEventListener("submit", function (event) {
+  event.preventDefault(); // ページのリセットを止める
+  const name = bookNameInput.value.trim(); // trim = 前後のすき間を取る
+  if (name === "") return; // すき間だけの名前は受け付けない
+
+  if (bookDialogMode === "add") {
+    // 新しい家計簿を作る。id は今の時刻の数字を使う（毎回ちがう数になる）
+    const book = { id: "b" + Date.now(), name: name };
+    books.push(book);
+    switchBook(book.id); // 作った家計簿に切り替える（ここで一覧も保存される）
+    showToast("「" + name + "」を作りました");
+  } else {
+    currentBook().name = name;
+    saveBooks();
+    renderBooks();
+    showToast("名前を「" + name + "」に変更しました");
+  }
+  bookDialog.close();
+  menuDialog.close();
+});
+
+// 「この家計簿を削除」
+deleteBookButton.addEventListener("click", function () {
+  const book = currentBook();
+  menuDialog.close();
+  askDelete(
+    "この家計簿を削除しますか？",
+    "「" + book.name + "」と、その中の出費 " + expenses.length + "件 をすべて削除します。元には戻せません。",
+    function () {
+      localStorage.removeItem(storageKeyOf(book.id)); // 出費のデータを消す
+      // filter = 条件に合うものだけ残す（消す家計簿以外を残す）
+      books = books.filter(function (b) { return b.id !== book.id; });
+      switchBook(books[0].id); // 残っている最初の家計簿に切り替える
+      showToast("「" + book.name + "」を削除しました");
+    }
+  );
+});
+
+renderBooks(); // 最初に、見出しの名前を今の家計簿にしておく
 
 // ===== レシートの読み取り（Tesseract.js） =====
 const receiptInput = document.getElementById("receipt-input");

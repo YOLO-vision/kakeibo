@@ -223,6 +223,152 @@ button:hover {
   font-weight: bold;
 }
 
+/* ===== いちばん上の帯（家計簿の名前とメニューボタン） ===== */
+.app-header {
+  position: relative;           /* メニューボタンを、この帯を基準に右はしへ置くため */
+}
+
+/* 名前が長くても、右のメニューボタンと重ならないように左右をあける */
+.app-header h1 {
+  padding: 0 48px;
+  overflow-wrap: anywhere;      /* 長い名前は折り返す */
+}
+
+/* ☰ ボタン：帯の右はし・上下の真ん中に置く */
+.menu-button {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);  /* 自分の高さの半分だけ上げて、ちょうど真ん中に */
+  width: 44px;                  /* 指で押しやすい大きさ */
+  height: 44px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;       /* 3本の線を縦に並べる */
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  background-color: transparent;
+}
+
+.menu-button:hover {
+  background-color: var(--main-light);
+}
+
+/* 3本の線の1本1本 */
+.menu-button span {
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background-color: #333333;
+}
+
+/* ===== メニュー（右から出てくるパネル） ===== */
+/* 上の dialog の設定（画面の真ん中・角丸）を上書きして、右はしに縦長に置く */
+dialog.drawer {
+  margin: 0 0 0 auto;           /* 左のすき間を自動にして、右に寄せる */
+  width: 80%;
+  max-width: 300px;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 16px 0 0 16px; /* 左側の角だけ丸く */
+  padding: 16px;
+  box-sizing: border-box;
+  animation: slide-in 0.25s ease-out; /* 開くときに右からすべり込む */
+}
+
+/* 右の外から、元の位置まで動かす動き */
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-header h2 {
+  margin: 0;
+}
+
+/* × ボタン */
+.close-button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 24px;
+  font-weight: normal;
+  color: #777777;
+  background-color: transparent;
+}
+
+.close-button:hover {
+  background-color: #f2f4f7;
+}
+
+/* 「家計簿」「この家計簿」の小見出し */
+.drawer-section {
+  font-size: 13px;
+  color: #777777;
+  margin: 24px 0 8px 0;
+}
+
+/* 家計簿の一覧 */
+.book-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px 0;
+}
+
+/* 家計簿の一覧の1行と、メニューの項目：文字だけの、左ぞろえのボタン */
+.book-item,
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: normal;
+  color: #333333;
+  background-color: transparent;
+  text-align: left;
+}
+
+.book-item:hover,
+.menu-item:hover {
+  background-color: #f2f4f7;
+}
+
+/* 今開いている家計簿：うすいオレンジで太字、右はしに ✓ */
+.book-item.current {
+  background-color: var(--main-light);
+  font-weight: bold;
+}
+
+.book-item.current::after {
+  content: "✓";
+  margin-left: auto;            /* 右はしに寄せる */
+  color: var(--main-dark);
+}
+
+/* 「＋ 新しい家計簿」はオレンジの文字 */
+#add-book {
+  color: var(--main-dark);
+}
+
+/* 「この家計簿を削除」は赤い文字 */
+.menu-item.danger {
+  color: #c0392b;
+}
+
+/* 押せないとき（家計簿が1冊だけのときの削除）は、うすくする */
+.menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background-color: transparent;
+}
+
 /* ===== お知らせ（トースト） ===== */
 /* 画面の下の真ん中に浮かべておき、ふだんは透明にして見えなくしておく */
 .toast {

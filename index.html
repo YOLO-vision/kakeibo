@@ -21,7 +21,16 @@
   <script src="script.js" defer></script>
 </head>
 <body>
-  <h1>家計簿</h1>
+  <!-- ===== いちばん上の帯：家計簿の名前と、右上のメニューボタン ===== -->
+  <header class="app-header">
+    <!-- 今開いている家計簿の名前（script.js が書き換える） -->
+    <h1 id="book-title">家計簿</h1>
+    <!-- ハンバーガーメニューのボタン。3本の線（span）で「☰」の形を描く -->
+    <!-- aria-label = 画面の読み上げ機能に「メニュー」と伝える（見た目に文字がないため） -->
+    <button type="button" id="menu-button" class="menu-button" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
 
   <!-- ===== 3つのカードをまとめる入れ物 ===== -->
   <!-- スマホでは縦に1列、PCでは左右2列に並べる（並べ方は style.css が決める） -->
@@ -179,12 +188,47 @@
   <!-- ===== 削除の確認ダイアログ ===== -->
   <!-- <dialog> は、ふだんは隠れていて、呼び出すと画面の中央に出てくる部品 -->
   <dialog id="delete-dialog">
-    <h2>この出費を削除しますか？</h2>
+    <!-- 出費の削除と家計簿の削除で使い回すので、見出しも script.js が書き換える -->
+    <h2 id="delete-title">この出費を削除しますか？</h2>
     <p id="delete-message"></p>
     <div class="dialog-buttons">
       <button type="button" id="cancel-delete" class="cancel-button">キャンセル</button>
       <button type="button" id="confirm-delete" class="danger-button">削除する</button>
     </div>
+  </dialog>
+
+  <!-- ===== メニュー（右から出てくる細長いパネル） ===== -->
+  <dialog id="menu-dialog" class="drawer">
+    <div class="drawer-header">
+      <h2>メニュー</h2>
+      <button type="button" id="close-menu" class="close-button" aria-label="閉じる">×</button>
+    </div>
+
+    <h3 class="drawer-section">家計簿</h3>
+    <!-- 家計簿の一覧（script.js が作る）。押すとその家計簿に切り替わる -->
+    <ul id="book-list" class="book-list"></ul>
+    <button type="button" id="add-book" class="menu-item">＋ 新しい家計簿</button>
+
+    <h3 class="drawer-section">この家計簿</h3>
+    <button type="button" id="rename-book" class="menu-item">名前を変更</button>
+    <button type="button" id="delete-book" class="menu-item danger">この家計簿を削除</button>
+  </dialog>
+
+  <!-- ===== 家計簿の名前を入れるダイアログ（追加と名前の変更で使い回す） ===== -->
+  <dialog id="book-dialog">
+    <form id="book-form">
+      <h2 id="book-dialog-title">新しい家計簿</h2>
+      <p>
+        <label>名前<br>
+          <!-- maxlength = 入れられる文字数の上限 -->
+          <input type="text" id="book-name" required maxlength="20" placeholder="例: 事業用">
+        </label>
+      </p>
+      <div class="dialog-buttons">
+        <button type="button" id="cancel-book" class="cancel-button">キャンセル</button>
+        <button type="submit">保存する</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- ===== お知らせ（トースト） ===== -->
