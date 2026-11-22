@@ -195,6 +195,7 @@
     <p id="delete-message"></p>
     <div class="dialog-buttons">
       <button type="button" id="cancel-delete" class="cancel-button">キャンセル</button>
+      <!-- ボタンの文字は script.js が書き換える（「削除する」「戻す」） -->
       <button type="button" id="confirm-delete" class="danger-button">削除する</button>
     </div>
   </dialog>
@@ -214,6 +215,14 @@
     <h3 class="drawer-section">この家計簿</h3>
     <button type="button" id="rename-book" class="menu-item">名前を変更</button>
     <button type="button" id="delete-book" class="menu-item danger">この家計簿を削除</button>
+
+    <h3 class="drawer-section">バックアップ</h3>
+    <button type="button" id="export-backup" class="menu-item">バックアップを保存</button>
+    <!-- 最後に保存した日（script.js が書き換える） -->
+    <p id="last-backup" class="menu-note"></p>
+    <button type="button" id="import-backup" class="menu-item">バックアップから戻す</button>
+    <!-- バックアップのファイルを選ぶ部品（見えなくしておき、上のボタンから開く） -->
+    <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden">
   </dialog>
 
   <!-- ===== 家計簿の名前を入れるダイアログ（追加と名前の変更で使い回す） ===== -->

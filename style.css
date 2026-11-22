@@ -299,6 +299,7 @@ dialog.drawer {
   border-radius: 16px 0 0 16px; /* 左側の角だけ丸く */
   padding: 16px;
   box-sizing: border-box;
+  overflow-y: auto;             /* 項目が多くて入りきらないときは、メニューの中をスクロール */
   animation: slide-in 0.25s ease-out; /* 開くときに右からすべり込む */
 }
 
@@ -385,6 +386,13 @@ dialog.drawer {
 /* 「この家計簿を削除」は赤い文字 */
 .menu-item.danger {
   color: #c0392b;
+}
+
+/* 「最後に保存：○月○日」の小さな文字 */
+.menu-note {
+  font-size: 12px;
+  color: #777777;
+  margin: -6px 0 4px 12px;      /* 上のボタンに少し寄せる */
 }
 
 /* 押せないとき（家計簿が1冊だけのときの削除）は、うすくする */

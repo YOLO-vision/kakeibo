@@ -593,10 +593,12 @@ const deleteTitle = document.getElementById("delete-title");
 
 // 削除の確認ダイアログを出す関数
 // title = 見出し、message = 消すものの説明、action = 「削除する」を押したときにやること
-function askDelete(title, message, action) {
+// buttonLabel = 赤いボタンの文字（書かなければ「削除する」）
+function askDelete(title, message, action, buttonLabel) {
   deleteTitle.textContent = title;
   deleteMessage.textContent = message;
   deleteAction = action;
+  confirmDeleteButton.textContent = buttonLabel || "削除する";
   deleteDialog.showModal(); // 確認ダイアログを画面中央に出す
 }
 
@@ -680,6 +682,7 @@ function switchBook(bookId) {
 // メニューを開く関数
 function openMenu() {
   renderBooks();
+  renderLastBackup(); // 「最後に保存：○月○日」も新しくする
   menuDialog.showModal();
 }
 
@@ -762,6 +765,152 @@ deleteBookButton.addEventListener("click", function () {
     }
   );
 });
+
+// ===== バックアップ（保存と戻す） =====
+const exportBackupButton = document.getElementById("export-backup");
+const importBackupButton = document.getElementById("import-backup");
+const importFileInput = document.getElementById("import-file");
+const lastBackupText = document.getElementById("last-backup");
+const LAST_BACKUP_KEY = "kakeibo-last-backup"; // 最後にバックアップを保存した日
+
+// 「最後に保存：11月22日」の表示を更新する関数
+function renderLastBackup() {
+  const last = localStorage.getItem(LAST_BACKUP_KEY); // 例: "2026-11-22"
+  if (last === null) {
+    lastBackupText.textContent = "まだ保存していません";
+  } else {
+    lastBackupText.textContent =
+      "最後に保存：" + Number(last.slice(0, 4)) + "年" + Number(last.slice(5, 7)) + "月" + Number(last.slice(8, 10)) + "日";
+  }
+}
+
+// 今日の日付を "2026-11-22" の形で返す関数
+function todayString() {
+  const d = new Date();
+  return toDateString(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+// 「バックアップを保存」
+exportBackupButton.addEventListener("click", function () {
+  // 全部の家計簿を、名前と出費をセットにして1つにまとめる
+  const backup = {
+    app: "kakeibo",           // 家計簿アプリのバックアップだという印
+    version: 1,               // ファイルの形の版（あとで形を変えたときに見分けるため）
+    savedAt: todayString(),   // 保存した日
+    currentBookId: currentBookId,
+    books: books.map(function (book) {
+      // map = 配列の1つ1つを変換して、新しい配列を作る
+      return { id: book.id, name: book.name, expenses: loadExpenses(book.id) };
+    }),
+  };
+
+  // まとめたものを文字（JSON）にして、ファイルにする
+  // null, 2 = 人が読みやすいように、改行とすき間を入れる
+  const fileName = "kakeibo-backup-" + backup.savedAt + ".json";
+  const file = new File([JSON.stringify(backup, null, 2)], fileName, { type: "application/json" });
+
+  // スマホで共有の画面が使えるときは、それを出す（「ファイル」に保存・LINE・AirDrop などを選べる）
+  const isPhone = /iPhone|iPad|Android/.test(navigator.userAgent);
+  if (isPhone && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file] })
+      .then(function () { backupSaved(); })
+      .catch(function (error) {
+        // AbortError = 共有の画面で「キャンセル」した。それ以外の失敗なら、ダウンロードで保存する
+        if (error.name !== "AbortError") downloadFile(file);
+      });
+  } else {
+    downloadFile(file);
+  }
+});
+
+// ファイルをダウンロードする関数
+// 見えないリンク（<a download>）を作って押したことにすると、ブラウザがファイルを保存してくれる
+function downloadFile(file) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(file); // ファイルに一時的な住所（URL）を付ける
+  link.download = file.name;             // 保存するときのファイル名
+  link.click();
+  // 少し待ってから、一時的な住所を片付ける
+  setTimeout(function () { URL.revokeObjectURL(link.href); }, 10000);
+  backupSaved();
+}
+
+// 保存できたときにやること
+function backupSaved() {
+  localStorage.setItem(LAST_BACKUP_KEY, todayString());
+  renderLastBackup();
+  menuDialog.close();
+  showToast("バックアップを保存しました");
+}
+
+// 「バックアップから戻す」：ファイルを選ぶ画面を開く
+importBackupButton.addEventListener("click", function () {
+  importFileInput.click();
+});
+
+// ファイルが選ばれたとき
+importFileInput.addEventListener("change", async function () {
+  const file = importFileInput.files[0];
+  importFileInput.value = ""; // 同じファイルをもう一度選んでも動くように、選んだ状態を消す
+  if (!file) return;
+
+  // ファイルの中身を読んで、バックアップとして正しい形か確かめる
+  let backup;
+  try {
+    backup = JSON.parse(await file.text()); // await = 読み終わるまで待つ
+  } catch (error) {
+    backup = null; // JSON として読めなかった
+  }
+  if (!isValidBackup(backup)) {
+    menuDialog.close();
+    showToast("家計簿のバックアップファイルではないようです");
+    return;
+  }
+
+  // 出費の件数を数える（全部の家計簿の合計）
+  let count = 0;
+  for (const book of backup.books) count = count + book.expenses.length;
+
+  menuDialog.close();
+  askDelete(
+    "バックアップから戻しますか？",
+    (backup.savedAt ? backup.savedAt.replace(/-/g, "/") + " に保存した" : "") +
+      "バックアップ（家計簿 " + backup.books.length + "冊・出費 " + count + "件）で、" +
+      "今のデータをすべて置きかえます。今のデータは消えます。",
+    function () { restoreBackup(backup); },
+    "戻す"
+  );
+});
+
+// バックアップとして正しい形かを確かめる関数（正しければ true）
+function isValidBackup(backup) {
+  if (backup === null || typeof backup !== "object") return false;
+  if (backup.app !== "kakeibo" || !Array.isArray(backup.books) || backup.books.length === 0) return false;
+  // every = 全部が条件に合うか
+  return backup.books.every(function (book) {
+    return typeof book.id === "string" && typeof book.name === "string" && Array.isArray(book.expenses) &&
+      book.expenses.every(function (e) {
+        return typeof e.date === "string" && typeof e.category === "string" && typeof e.amount === "number";
+      });
+  });
+}
+
+// バックアップの内容で、今のデータを置きかえる関数
+function restoreBackup(backup) {
+  // 今の家計簿の出費のデータを、全部消す
+  for (const book of books) localStorage.removeItem(storageKeyOf(book.id));
+
+  // バックアップの家計簿を、1冊ずつ保存し直す
+  books = backup.books.map(function (book) {
+    localStorage.setItem(storageKeyOf(book.id), JSON.stringify(book.expenses));
+    return { id: book.id, name: book.name };
+  });
+
+  // バックアップを取ったときに開いていた家計簿を開く（無ければ1冊目）
+  const exists = books.some(function (book) { return book.id === backup.currentBookId; });
+  switchBook(exists ? backup.currentBookId : books[0].id); // ここで一覧も保存される
+  showToast("バックアップから戻しました");
+}
 
 renderBooks(); // 最初に、タイトルの下のラベルを今の家計簿の名前にしておく
 
