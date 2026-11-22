@@ -53,6 +53,7 @@ const viewButtons = document.getElementById("view-buttons");
 const editButtons = document.getElementById("edit-buttons");
 const startEditButton = document.getElementById("start-edit");
 const cancelEditButton = document.getElementById("cancel-edit");
+const startDeleteButton = document.getElementById("start-delete");
 
 // 分類の選択肢を、上の入力フォームからそのままコピーする
 // （分類を増やすときは index.html の上のフォーム1か所だけ直せばよい）
@@ -309,9 +310,22 @@ function renderDayList(monthExpenses) {
   for (const expense of dayExpenses) {
     const item = document.createElement("li"); // 新しい <li> を作る
 
-    // 出費の内容を表示する部分（日付は見出しにあるので、分類と金額だけ）
-    const text = document.createElement("span");
-    text.textContent = expense.category + "　" + formatYen(expense.amount) + "円";
+    // 出費の内容を表示する部分（日付は見出しにあるので、分類と金額とメモ）
+    const text = document.createElement("div");
+    text.className = "item-text";
+
+    // 1行目：分類と金額
+    const mainLine = document.createElement("div");
+    mainLine.textContent = expense.category + "　" + formatYen(expense.amount) + "円";
+    text.appendChild(mainLine);
+
+    // 2行目：メモ（メモがあるときだけ）
+    if (expense.memo) {
+      const memoLine = document.createElement("div");
+      memoLine.className = "item-memo";
+      memoLine.textContent = expense.memo;
+      text.appendChild(memoLine);
+    }
 
     // 詳細ボタン
     const detailButton = document.createElement("button");
@@ -326,21 +340,8 @@ function renderDayList(monthExpenses) {
       detailDialog.showModal();
     });
 
-    // 削除ボタン
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "削除";
-    deleteButton.className = "delete-button"; // CSS で見た目を変えるための class
-
-    // 削除ボタンが押されたら、すぐには消さずに確認ダイアログを出す
-    deleteButton.addEventListener("click", function () {
-      expenseToDelete = expense;                    // 消す候補を覚えておく
-      deleteMessage.textContent = expense.date + "　" + text.textContent; // ダイアログに内容を表示
-      deleteDialog.showModal();                     // ダイアログを画面中央に出す
-    });
-
     item.appendChild(text);         // <li> の中に内容を入れる
-    item.appendChild(detailButton); // <li> の中に詳細ボタンを入れる（削除の左）
-    item.appendChild(deleteButton); // <li> の中に削除ボタンを入れる
+    item.appendChild(detailButton); // <li> の中に詳細ボタンを入れる
     list.appendChild(item);         // 一覧（<ul>）の最後に入れる
   }
 }
@@ -361,11 +362,41 @@ form.addEventListener("submit", function (event) {
   expenses.push(expense);  // 配列の最後に追加する
   save();                  // ブラウザに保存する
   showDate(expense.date);  // 追加した日のカレンダーを表示して、その日を選ぶ
+  showToast(describe(expense) + " を追加しました");
 
   // 次の入力に備えて、金額とメモの欄を空にする
   amountInput.value = "";
   memoInput.value = "";
+
+  // レシートの読み取り結果も片付けて、次のレシートに備える
+  receiptPreview.hidden = true;
+  ocrStatus.hidden = true;
+  ocrDetails.hidden = true;
+  ocrDetails.open = false; // 「読み取った文字を見る」を閉じた状態に戻す
 });
+
+// ===== お知らせ（トースト） =====
+const toast = document.getElementById("toast");
+let toastTimer = null; // 「何秒後に消す」の予約を覚えておく箱
+
+// 画面の下にお知らせを出して、2.5秒後に消す関数
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show"); // CSS の .toast.show で見えるようになる
+  // 続けて出したときは、前の「消す予約」を取り消してから予約し直す
+  clearTimeout(toastTimer);
+  // setTimeout(やること, ミリ秒) = 指定した時間のあとに1回だけ動かす（2500ミリ秒 = 2.5秒）
+  toastTimer = setTimeout(function () {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+// 出費を「11月22日 食費 1,060円」のような短い文にする関数
+function describe(expense) {
+  const month = Number(expense.date.slice(5, 7));
+  const day = Number(expense.date.slice(8, 10));
+  return month + "月" + day + "日 " + expense.category + " " + formatYen(expense.amount) + "円";
+}
 
 // ===== 詳細・編集ダイアログ =====
 // 覚えておいた出費の内容を、入力欄に入れる関数
@@ -380,6 +411,7 @@ function fillDetail() {
 function setEditMode(isEditing) {
   editFields.disabled = !isEditing;  // 編集中だけ入力できるようにする
   viewButtons.hidden = isEditing;    // 編集中は「閉じる・編集する」を隠す
+  startDeleteButton.hidden = isEditing; // 編集中は「この出費を削除」も隠す
   editButtons.hidden = !isEditing;   // 編集中だけ「キャンセル・保存する」を出す
   detailTitle.textContent = isEditing ? "出費を編集" : "出費の詳細";
 }
@@ -413,9 +445,19 @@ editForm.addEventListener("submit", function (event) {
 
   save();                      // 保存する
   showDate(expenseToEdit.date); // 編集後の日付を表示する（日付を変えた場合もそこへ移る）
+  showToast(describe(expenseToEdit) + " に変更しました");
 
   expenseToEdit = null;
   detailDialog.close();
+});
+
+// 「この出費を削除」：詳細ダイアログを閉じて、削除の確認ダイアログを出す
+startDeleteButton.addEventListener("click", function () {
+  expenseToDelete = expenseToEdit;   // 消す候補を覚えておく
+  expenseToEdit = null;
+  deleteMessage.textContent = describe(expenseToDelete); // ダイアログに内容を表示
+  detailDialog.close();
+  deleteDialog.showModal();          // 確認ダイアログを画面中央に出す
 });
 
 // ===== 削除ダイアログのボタン =====
@@ -432,6 +474,7 @@ confirmDeleteButton.addEventListener("click", function () {
     expenses.splice(index, 1);  // その位置から1件取り除く
     save();                     // 保存する
     render();                   // 画面を描き直す
+    showToast(describe(expenseToDelete) + " を削除しました");
   }
   expenseToDelete = null;
   deleteDialog.close();

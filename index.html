@@ -165,6 +165,8 @@
         <button type="button" id="close-detail" class="cancel-button">閉じる</button>
         <button type="button" id="start-edit">編集する</button>
       </div>
+      <!-- 削除は押し間違えないように、詳細の中の下のほうに小さく置く -->
+      <button type="button" id="start-delete" class="text-danger-button">この出費を削除</button>
 
       <!-- 編集中のボタン（hidden = 最初は隠しておく） -->
       <div class="dialog-buttons" id="edit-buttons" hidden>
@@ -184,5 +186,10 @@
       <button type="button" id="confirm-delete" class="danger-button">削除する</button>
     </div>
   </dialog>
+
+  <!-- ===== お知らせ（トースト） ===== -->
+  <!-- 追加・保存・削除のあと、画面の下に数秒だけ出る。中の文字は script.js が入れる -->
+  <!-- aria-live = 画面の読み上げ機能を使っている人にも、出てきた文字を読み上げてもらう -->
+  <div id="toast" class="toast" aria-live="polite"></div>
 </body>
 </html>

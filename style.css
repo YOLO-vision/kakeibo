@@ -1,3 +1,12 @@
+/* ===== テーマの色 ===== */
+/* 色に名前を付けておき、下では var(--main) のように名前で使う */
+/* テーマの色を変えたくなったら、ここの3つを直すだけでアプリ全体の色が変わる */
+:root {
+  --main: #e67e22;        /* オレンジ（ボタン・見出しなど） */
+  --main-dark: #b85a12;   /* 濃いオレンジ（白い背景の上の文字・マウスを乗せたとき） */
+  --main-light: #fdf2e9;  /* うすいオレンジ（今日のマス・マウスを乗せたときの背景） */
+}
+
 /* ===== ページ全体 ===== */
 body {
   font-family: sans-serif;      /* 読みやすい文字の種類 */
@@ -11,7 +20,7 @@ body {
 /* ===== 見出し ===== */
 h1 {
   text-align: center;           /* 中央ぞろえ */
-  color: #e67e22;               /* テーマカラー（緑） */
+  color: var(--main);           /* テーマカラー（オレンジ） */
 }
 
 h2 {
@@ -49,7 +58,7 @@ button {
   font-size: 16px;
   font-weight: bold;
   color: #ffffff;
-  background-color: #e67e22;
+  background-color: var(--main);
   border: none;
   border-radius: 8px;
   cursor: pointer;              /* マウスを乗せると指マークに */
@@ -57,13 +66,13 @@ button {
 
 /* マウスを乗せたとき、少し濃い色に */
 button:hover {
-  background-color: #24654a;
+  background-color: var(--main-dark);
 }
 
 /* ===== 合計金額 ===== */
 #total {
   font-size: 24px;
-  color: #2e7d5b;
+  color: var(--main-dark);
 }
 
 /* ===== 出費の一覧 ===== */
@@ -81,24 +90,67 @@ button:hover {
 }
 
 /* 内容の部分は、余ったスペースいっぱいに広がる（ボタンを右端に寄せる） */
-#expense-list li span {
+.item-text {
   flex: 1;
+  min-width: 0;                 /* 長いメモのとき、はみ出さずに「…」で省略できるようにする */
 }
 
-/* ===== 削除ボタン ===== */
-/* 上の「button」の設定（緑・横幅いっぱい）を、削除ボタンだけ上書きする */
-.delete-button {
+/* メモ：分類と金額の下に、小さくうすい文字で1行だけ */
+.item-memo {
+  font-size: 13px;
+  color: #777777;
+  margin-top: 2px;
+  white-space: nowrap;          /* 折り返さない */
+  overflow: hidden;             /* はみ出た分は隠す */
+  text-overflow: ellipsis;      /* 隠したところは「…」にする */
+}
+
+/* ===== 詳細ダイアログの中の削除ボタン ===== */
+/* 上の「button」の設定（オレンジ・横幅いっぱい）を上書きして、赤い文字だけのボタンにする */
+.text-danger-button {
+  display: block;
   width: auto;                  /* 横幅は文字の分だけ */
+  margin: 16px auto 0 auto;     /* 上にすき間をあけて、左右の真ん中に置く */
   padding: 6px 12px;
   font-size: 14px;
   font-weight: normal;
   color: #c0392b;               /* 赤い文字 */
-  background-color: #ffffff;
-  border: 1px solid #c0392b;    /* 赤い枠線 */
+  background-color: transparent;
 }
 
-.delete-button:hover {
+.text-danger-button:hover {
   background-color: #fdecea;    /* マウスを乗せると薄い赤に */
+}
+
+/* hidden のときは確実に隠す（display: block が hidden より優先されてしまうため） */
+.text-danger-button[hidden] {
+  display: none;
+}
+
+/* ===== お知らせ（トースト） ===== */
+/* 画面の下の真ん中に浮かべておき、ふだんは透明にして見えなくしておく */
+.toast {
+  position: fixed;              /* スクロールしても画面の同じ場所にいる */
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 16px); /* 左右の真ん中に寄せて、少し下にずらしておく */
+  max-width: calc(100% - 32px);
+  padding: 12px 20px;
+  border-radius: 24px;
+  background-color: #333333;
+  color: #ffffff;
+  font-size: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  opacity: 0;                   /* 透明 */
+  pointer-events: none;         /* 見えないあいだは、押しても下のボタンに届くように */
+  transition: opacity 0.3s, transform 0.3s; /* 0.3秒かけて、ふわっと変わる */
+  z-index: 10;                  /* ほかの部品より手前に出す */
+}
+
+/* script.js が show を付けると、見えるようになって少し上に上がってくる */
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* ===== 削除の確認ダイアログ ===== */
@@ -149,19 +201,20 @@ dialog::backdrop {
 }
 
 /* ===== 詳細ボタン ===== */
-/* 削除ボタンと同じ形で、色だけ緑にする */
+/* 白地にオレンジの枠の、小さいボタン */
 .detail-button {
   width: auto;
+  flex-shrink: 0;               /* メモが長くても、ボタンはつぶれないように */
   padding: 6px 12px;
   font-size: 14px;
   font-weight: normal;
-  color: #2e7d5b;
+  color: var(--main-dark);
   background-color: #ffffff;
-  border: 1px solid #2e7d5b;
+  border: 1px solid var(--main);
 }
 
 .detail-button:hover {
-  background-color: #e8f3ee;
+  background-color: var(--main-light);
 }
 
 /* ===== 詳細・編集ダイアログの中身 ===== */
@@ -261,7 +314,7 @@ dialog::backdrop {
 /* その日の合計金額（小さい文字） */
 .day-amount {
   font-size: 10px;
-  color: #2e7d5b;
+  color: var(--main-dark);
   margin-top: 4px;
 }
 
@@ -294,15 +347,15 @@ dialog::backdrop {
   background-color: #dde8f5;
 }
 
-/* 今日：太字で背景を薄い緑に */
+/* 今日：太字で背景をうすいオレンジに */
 .day.today {
   font-weight: bold;
-  background-color: #e8f3ee;
+  background-color: var(--main-light);
 }
 
-/* 選んでいる日：緑の枠 */
+/* 選んでいる日：オレンジの枠 */
 .day.selected {
-  border-color: #2e7d5b;
+  border-color: var(--main);
 }
 
 /* 選んだ日の見出し */
@@ -383,15 +436,15 @@ dialog::backdrop {
   padding: 12px;
   font-size: 16px;
   font-weight: bold;
-  color: #e67e22;
+  color: var(--main);
   background-color: #ffffff;
-  border: 2px solid #e67e22;
+  border: 2px solid var(--main);
   border-radius: 8px;
   cursor: pointer;
 }
 
 .receipt-button:hover {
-  background-color: #fdf2e9;
+  background-color: var(--main-light);
 }
 
 /* 読み取り中はボタンを薄くして、押せないようにする */
@@ -426,6 +479,11 @@ dialog::backdrop {
   max-height: 200px;
   margin: 8px auto;
   border-radius: 8px;
+}
+
+/* hidden のときは確実に隠す（display: block が hidden より優先されてしまうため） */
+.receipt-preview[hidden] {
+  display: none;
 }
 
 /* 読み取った文字：折り返して、長いときはスクロール */
