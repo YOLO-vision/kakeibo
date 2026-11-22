@@ -290,6 +290,7 @@ function render() {
   totalText.textContent = formatYen(sumAmount(monthExpenses));
 
   renderCalendar(monthExpenses);
+  renderTable(monthExpenses);
   renderDayList(monthExpenses);
   renderSummary(monthExpenses);
 }
@@ -432,6 +433,133 @@ function renderCalendar(monthExpenses) {
     calendarDays.appendChild(cell);
   }
 }
+
+// ===== 表の見え方（1日1行） =====
+const dayTable = document.getElementById("day-table");
+const WEEKDAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
+
+// 表の列にする分類の一覧を返す関数
+// 入力フォームの分類の選択肢を全部並べる（出費がない分類も、列は出す）
+function tableCategories(monthExpenses) {
+  const categories = [];
+  for (const option of categoryInput.options) categories.push(option.value);
+  // 選択肢にない分類の出費があれば（あとで分類を変えたときなど）、それも列に足す
+  for (const expense of monthExpenses) {
+    if (!categories.includes(expense.category)) categories.push(expense.category);
+  }
+  return categories;
+}
+
+// 表のマス（<th> か <td>）を1つ作る関数
+function makeCell(tag, text, className) {
+  const cell = document.createElement(tag);
+  cell.textContent = text;
+  if (className) cell.className = className;
+  return cell;
+}
+
+// 金額のマスに出す文字（0円なら空白にして、見やすくする）
+function amountText(amount) {
+  return amount > 0 ? formatYen(amount) : "";
+}
+
+// 1日1行の表を作る関数
+function renderTable(monthExpenses) {
+  dayTable.textContent = ""; // いったん空にする
+  const categories = tableCategories(monthExpenses);
+
+  // --- 見出しの行：日付・分類（色の丸付き）・合計 ---
+  // <thead> = 見出しの部分、<tr> = 1行、<th> = 見出しのマス
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headRow.appendChild(makeCell("th", "日付", "date-cell"));
+  for (const category of categories) {
+    const th = makeCell("th", "");
+    th.appendChild(makeDot(category)); // 分類の色の丸（自作プルダウンと同じ関数）
+    th.append(category);
+    headRow.appendChild(th);
+  }
+  headRow.appendChild(makeCell("th", "合計", "total-cell"));
+  head.appendChild(headRow);
+  dayTable.appendChild(head);
+
+  // --- 1日1行 ---
+  // <tbody> = 中身の部分、<td> = ふつうのマス
+  const body = document.createElement("tbody");
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate(); // その月が何日まであるか
+  const monthTotals = {}; // 分類ごとの月の合計（一番下の行に使う）
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateString = toDateString(viewYear, viewMonth, day);
+    const weekday = new Date(viewYear, viewMonth - 1, day).getDay(); // 0 = 日曜 〜 6 = 土曜
+
+    // その日の、分類ごとの合計を計算する
+    const dayTotals = {};
+    let dayTotal = 0;
+    for (const expense of monthExpenses) {
+      if (expense.date !== dateString) continue;
+      dayTotals[expense.category] = (dayTotals[expense.category] || 0) + expense.amount;
+      monthTotals[expense.category] = (monthTotals[expense.category] || 0) + expense.amount;
+      dayTotal = dayTotal + expense.amount;
+    }
+
+    const row = document.createElement("tr");
+    // 曜日・今日・選んでいる日によって、見た目用の class を足す（カレンダーと同じ名前）
+    if (weekday === 0) row.classList.add("sun");
+    if (weekday === 6) row.classList.add("sat");
+    if (dateString === today) row.classList.add("today");
+    if (dateString === selectedDate) row.classList.add("selected");
+
+    row.appendChild(makeCell("th", day + "(" + WEEKDAY_NAMES[weekday] + ")", "date-cell"));
+    for (const category of categories) {
+      row.appendChild(makeCell("td", amountText(dayTotals[category] || 0)));
+    }
+    row.appendChild(makeCell("td", amountText(dayTotal), "total-cell"));
+
+    // 行を押したら、その日を選んで描き直す（下にその日の一覧が出る）
+    row.addEventListener("click", function () {
+      selectedDate = dateString;
+      render();
+    });
+    body.appendChild(row);
+  }
+  dayTable.appendChild(body);
+
+  // --- 一番下の行：分類ごとの月の合計 ---
+  // <tfoot> = 表の一番下の部分
+  const foot = document.createElement("tfoot");
+  const footRow = document.createElement("tr");
+  footRow.appendChild(makeCell("th", "合計", "date-cell"));
+  for (const category of categories) {
+    footRow.appendChild(makeCell("td", amountText(monthTotals[category] || 0)));
+  }
+  footRow.appendChild(makeCell("td", formatYen(sumAmount(monthExpenses)), "total-cell"));
+  foot.appendChild(footRow);
+  dayTable.appendChild(foot);
+}
+
+// ===== カレンダーと表の切り替え =====
+const calendarView = document.getElementById("calendar-view");
+const tableView = document.getElementById("table-view");
+const showCalendarButton = document.getElementById("show-calendar");
+const showTableButton = document.getElementById("show-table");
+const VIEW_KEY = "kakeibo-view"; // 最後に選んだ見え方を覚えておく場所の名前
+
+// 見え方を切り替える関数（view は "calendar" か "table"）
+function setView(view) {
+  calendarView.hidden = view !== "calendar";
+  tableView.hidden = view !== "table";
+  // 選んでいるほうのボタンに印（active）を付ける
+  showCalendarButton.classList.toggle("active", view === "calendar");
+  showTableButton.classList.toggle("active", view === "table");
+  localStorage.setItem(VIEW_KEY, view);
+}
+
+showCalendarButton.addEventListener("click", function () { setView("calendar"); });
+showTableButton.addEventListener("click", function () { setView("table"); });
+
+// 最初は、最後に選んだ見え方にする（何も覚えていなければカレンダー）
+setView(localStorage.getItem(VIEW_KEY) === "table" ? "table" : "calendar");
 
 // 選んだ日の出費一覧を作る関数
 function renderDayList(monthExpenses) {

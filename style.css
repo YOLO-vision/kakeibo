@@ -696,6 +696,151 @@ dialog::backdrop {
   border-color: var(--main);
 }
 
+/* ===== カレンダーと表の切り替えボタン ===== */
+/* 2つのボタンを、つながった1本の帯のように並べる */
+.view-switch {
+  display: flex;
+  background-color: #e4e7eb;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.view-button {
+  flex: 1;                      /* 2つのボタンを同じ幅に */
+  padding: 6px;
+  font-size: 14px;
+  font-weight: normal;
+  color: #555555;
+  background-color: transparent;
+  border-radius: 6px;
+}
+
+.view-button:hover {
+  background-color: #d5d9de;
+}
+
+/* 選んでいるほう：白く浮き上がらせて、文字をオレンジに */
+.view-button.active {
+  background-color: #ffffff;
+  color: var(--main-dark);
+  font-weight: bold;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== 表の見え方（1日1行） ===== */
+/* 横に入りきらないときは、この入れ物の中だけ横にスクロールする */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.day-table {
+  width: 100%;
+  border-collapse: collapse;    /* マスの枠線を重ねて1本にする */
+  font-size: 13px;
+  white-space: nowrap;          /* 金額や分類名を途中で折り返さない */
+}
+
+/* すべてのマス：右寄せ（金額の桁をそろえる）と、下の区切り線 */
+.day-table th,
+.day-table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid #eeeeee;
+  background-color: #ffffff;    /* 左に止める日付の列が、スクロールした金額と重ならないように */
+}
+
+/* 見出しの行：小さめのうすい文字、丸と分類名を横に並べる */
+.day-table thead th {
+  font-size: 12px;
+  font-weight: normal;
+  color: #555555;
+  border-bottom: 2px solid #dddddd;
+}
+
+.day-table thead th .dot {
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* 日付の列：左寄せにして、横にスクロールしても左に止まったままにする */
+.day-table .date-cell {
+  text-align: left;
+  font-weight: normal;
+  position: sticky;             /* スクロールしても、この場所に止まる */
+  left: 0;
+  z-index: 1;                   /* 金額のマスより手前に出す */
+}
+
+/* 合計の列：太字で、うすいオレンジの背景。スマホで横にスクロールしても、右はしに止まったままにする */
+.day-table .total-cell {
+  font-weight: bold;
+  background-color: var(--main-light);
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  box-shadow: inset 1px 0 0 #f0d9c4; /* 左側にうすい線を引いて、金額の列と区切る */
+}
+
+/* 1日の行：押せるので指マークに */
+.day-table tbody tr {
+  cursor: pointer;
+}
+
+.day-table tbody tr:hover td,
+.day-table tbody tr:hover th {
+  background-color: #f7f8fa;
+}
+
+/* 日曜は赤、土曜は青（背景もうっすら。カレンダーと同じ色） */
+.day-table tr.sun th,
+.day-table tr.sun td {
+  background-color: #fbeeed;
+}
+
+.day-table tr.sun .date-cell {
+  color: #c0392b;
+}
+
+.day-table tr.sat th,
+.day-table tr.sat td {
+  background-color: #edf3fa;
+}
+
+.day-table tr.sat .date-cell {
+  color: #2f6fb3;
+}
+
+/* 今日：日付を太字に */
+.day-table tr.today .date-cell {
+  font-weight: bold;
+}
+
+/* 選んでいる日：オレンジの枠で囲む（左はしに太い線、行の背景もうすいオレンジ） */
+.day-table tr.selected th,
+.day-table tr.selected td {
+  background-color: var(--main-light);
+}
+
+.day-table tr.selected .date-cell {
+  box-shadow: inset 4px 0 0 var(--main); /* 左はしに太いオレンジの線 */
+  font-weight: bold;
+}
+
+/* 合計の列は、土日の行でもうすいオレンジのままにする（土日の色より強く指定する） */
+.day-table tbody tr td.total-cell {
+  background-color: var(--main-light);
+}
+
+/* 一番下の合計の行：太字で、上に太めの線 */
+.day-table tfoot th,
+.day-table tfoot td {
+  font-weight: bold;
+  border-top: 2px solid #dddddd;
+  border-bottom: none;
+}
+
 /* 選んだ日の見出し */
 #day-title {
   font-size: 16px;

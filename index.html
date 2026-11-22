@@ -112,18 +112,34 @@
   </div>
   <p class="month-total">この月の合計：<strong id="total">0</strong> 円</p>
 
-  <!-- 曜日の見出し（7列） -->
-  <div class="calendar">
-    <div class="weekday sun">日</div>
-    <div class="weekday">月</div>
-    <div class="weekday">火</div>
-    <div class="weekday">水</div>
-    <div class="weekday">木</div>
-    <div class="weekday">金</div>
-    <div class="weekday sat">土</div>
+  <!-- 見え方の切り替え（カレンダー / 表） -->
+  <div class="view-switch">
+    <button type="button" id="show-calendar" class="view-button">カレンダー</button>
+    <button type="button" id="show-table" class="view-button">表</button>
   </div>
-  <!-- 日付のマス（script.js が作る） -->
-  <div class="calendar" id="calendar-days"></div>
+
+  <!-- ===== カレンダーの見え方 ===== -->
+  <div id="calendar-view">
+    <!-- 曜日の見出し（7列） -->
+    <div class="calendar">
+      <div class="weekday sun">日</div>
+      <div class="weekday">月</div>
+      <div class="weekday">火</div>
+      <div class="weekday">水</div>
+      <div class="weekday">木</div>
+      <div class="weekday">金</div>
+      <div class="weekday sat">土</div>
+    </div>
+    <!-- 日付のマス（script.js が作る） -->
+    <div class="calendar" id="calendar-days"></div>
+  </div>
+
+  <!-- ===== 表の見え方（1日1行・分類ごとの金額・右はしに1日の合計） ===== -->
+  <!-- 横に入りきらないときは、この入れ物の中だけ横にスクロールする -->
+  <div id="table-view" class="table-wrap" hidden>
+    <!-- <table> は表。中身（行と列）は script.js が作る -->
+    <table id="day-table" class="day-table"></table>
+  </div>
 
   <!-- 選んだ日の出費一覧 -->
   <h3 id="day-title"></h3>
